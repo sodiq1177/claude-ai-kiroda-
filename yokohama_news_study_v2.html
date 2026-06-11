@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>横浜ニュース — O'rganish Kartochkalari v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0e0f11; --bg2:#161719; --bg3:#1e2024; --bg4:#26282d;
+    --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
+    --text:#e8e9ec; --text2:#9ca0ab; --text3:#5c606b;
+    --accent:#e8c47a; --accent2:#c9a54e;
+    --red:#e07070; --green:#6ec99a; --blue:#7ab8e8; --purple:#b49ce8;
+    --tag-n2:#7ab8e8; --tag-n3:#6ec99a; --tag-idiom:#e8a87a;
+    --tag-kanji:#b49ce8; --tag-expr:#e8c47a; --tag-kawai:#f09898;
+    --radius:10px; --radius2:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans JP',sans-serif;min-height:100vh;}
+
+  /* HEADER */
+  .header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:100;}
+  .header-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--accent);}
+  .header-sub{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+  .stats-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .stat-pill{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:12px;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:5px;}
+  .dot{width:7px;height:7px;border-radius:50%;}
+  .dot-green{background:var(--green);} .dot-red{background:var(--red);} .dot-all{background:var(--accent);}
+
+  /* CONTROLS */
+  .controls{padding:12px 24px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .mode-tabs{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;}
+  .mode-tab{padding:7px 15px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text2);transition:all .15s;white-space:nowrap;}
+  .mode-tab.active{background:var(--accent);color:#1a1200;}
+  .filter-group{display:flex;gap:6px;flex-wrap:wrap;}
+  .filter-btn{padding:5px 12px;font-size:12px;border-radius:20px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;font-family:'Noto Sans JP',sans-serif;}
+  .filter-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(232,196,122,0.1);}
+  .filter-btn.f-n2.active{border-color:var(--tag-n2);color:var(--tag-n2);background:rgba(122,184,232,0.1);}
+  .filter-btn.f-n3.active{border-color:var(--tag-n3);color:var(--tag-n3);background:rgba(110,201,154,0.1);}
+  .filter-btn.f-idiom.active{border-color:var(--tag-idiom);color:var(--tag-idiom);background:rgba(232,168,122,0.1);}
+  .filter-btn.f-kanji.active{border-color:var(--tag-kanji);color:var(--tag-kanji);background:rgba(180,156,232,0.1);}
+  .filter-btn.f-expr.active{border-color:var(--tag-expr);color:var(--tag-expr);background:rgba(232,196,122,0.1);}
+  .filter-btn.f-kawai.active{border-color:var(--tag-kawai);color:var(--tag-kawai);background:rgba(240,152,152,0.1);}
+  .sep{width:1px;height:26px;background:var(--border2);margin:0 2px;}
+  .status-filters{display:flex;gap:6px;}
+  .status-btn{padding:5px 12px;font-size:12px;border-radius:20px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;}
+  .status-btn.active-all{border-color:var(--accent);color:var(--accent);background:rgba(232,196,122,0.1);}
+  .status-btn.active-known{border-color:var(--green);color:var(--green);background:rgba(110,201,154,0.1);}
+  .status-btn.active-unknown{border-color:var(--red);color:var(--red);background:rgba(224,112,112,0.1);}
+
+  /* MAIN */
+  .main{padding:22px 24px;max-width:1100px;margin:0 auto;}
+
+  /* CARD GRID */
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:13px;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:17px 17px 13px;transition:border-color .15s,transform .1s;position:relative;}
+  .card:hover{border-color:var(--border2);transform:translateY(-1px);}
+  .card.known{border-left:3px solid var(--green);}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;}
+  .card-word{font-family:'Noto Serif JP',serif;font-size:26px;font-weight:700;color:var(--text);line-height:1.2;}
+  .card-tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;}
+  .tag{font-size:10px;font-family:'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;font-weight:500;border:1px solid;}
+  .tag-n2{color:var(--tag-n2);border-color:rgba(122,184,232,0.3);background:rgba(122,184,232,0.08);}
+  .tag-n3{color:var(--tag-n3);border-color:rgba(110,201,154,0.3);background:rgba(110,201,154,0.08);}
+  .tag-idiom{color:var(--tag-idiom);border-color:rgba(232,168,122,0.3);background:rgba(232,168,122,0.08);}
+  .tag-kanji{color:var(--tag-kanji);border-color:rgba(180,156,232,0.3);background:rgba(180,156,232,0.08);}
+  .tag-expr{color:var(--tag-expr);border-color:rgba(232,196,122,0.3);background:rgba(232,196,122,0.08);}
+  .tag-kawai{color:var(--tag-kawai);border-color:rgba(240,152,152,0.3);background:rgba(240,152,152,0.08);}
+  .card-reading{font-size:13px;color:var(--text2);font-family:'Noto Sans JP',sans-serif;margin-bottom:5px;}
+  .card-meaning{font-size:14px;color:var(--text);line-height:1.55;margin-bottom:9px;}
+  .card-example{font-size:12px;color:var(--text3);font-family:'Noto Sans JP',sans-serif;line-height:1.7;border-top:1px solid var(--border);padding-top:8px;}
+  .card-example .ex-jp{color:var(--text2);margin-bottom:3px;}
+  .card-example .ex-uz{color:var(--text3);font-size:11px;}
+  .card-btns{display:flex;gap:6px;margin-top:11px;}
+  .btn-know,.btn-dontknow{flex:1;padding:7px;border-radius:var(--radius2);border:1px solid var(--border);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;background:var(--bg3);color:var(--text2);}
+  .btn-know:hover,.card.known .btn-know{background:rgba(110,201,154,0.15);border-color:var(--green);color:var(--green);}
+  .btn-dontknow:hover{background:rgba(224,112,112,0.15);border-color:var(--red);color:var(--red);}
+  .empty{text-align:center;padding:60px 20px;color:var(--text3);font-size:15px;}
+
+  /* ===== FLASHCARD MODE ===== */
+  .flashcard-wrap{display:none;flex-direction:column;align-items:center;gap:18px;padding:20px 0;}
+  .flashcard-wrap.active{display:flex;}
+  .fc-counter{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text3);}
+
+  /* CARD CONTAINER — 3D flip */
+  .fc-scene{width:100%;max-width:520px;height:320px;perspective:1000px;}
+  .fc-card{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform 0.55s cubic-bezier(.4,0,.2,1);cursor:pointer;}
+  .fc-card.flipped{transform:rotateY(180deg);}
+  .fc-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:14px;border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 26px;text-align:center;}
+
+  /* FRONT */
+  .fc-front{background:var(--bg2);}
+  .fc-front-word{font-family:'Noto Serif JP',serif;font-size:64px;font-weight:700;color:var(--text);line-height:1.1;margin-bottom:12px;}
+  .fc-front-tags{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+  .fc-front-hint{font-size:12px;color:var(--text3);font-family:'IBM Plex Mono',monospace;position:absolute;bottom:18px;}
+
+  /* BACK */
+  .fc-back{background:var(--bg3);transform:rotateY(180deg);}
+  .fc-back-reading{font-size:18px;color:var(--text2);font-family:'Noto Sans JP',sans-serif;margin-bottom:10px;}
+  .fc-back-meaning{font-size:22px;font-weight:600;color:var(--accent);margin-bottom:16px;line-height:1.3;}
+  .fc-back-example{font-size:13px;color:var(--text2);font-family:'Noto Sans JP',sans-serif;line-height:1.9;border-top:1px solid var(--border);padding-top:13px;width:100%;text-align:center;}
+  .fc-back-example .bex-jp{margin-bottom:4px;}
+  .fc-back-example .bex-uz{font-size:11px;color:var(--text3);}
+
+  .fc-btns{display:flex;gap:12px;}
+  .fc-btn{padding:10px 30px;border-radius:var(--radius);border:1px solid var(--border);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;background:var(--bg3);color:var(--text2);}
+  .fc-btn.known-btn{border-color:rgba(110,201,154,0.4);color:var(--green);background:rgba(110,201,154,0.08);}
+  .fc-btn.unknown-btn{border-color:rgba(224,112,112,0.4);color:var(--red);background:rgba(224,112,112,0.08);}
+  .fc-btn.known-btn:hover{background:rgba(110,201,154,0.2);}
+  .fc-btn.unknown-btn:hover{background:rgba(224,112,112,0.2);}
+  .fc-btns-wrap{display:none;}
+  .fc-btns-wrap.show{display:flex;gap:12px;}
+
+  .summary-box{display:none;flex-direction:column;align-items:center;gap:14px;padding:36px 20px;text-align:center;}
+  .summary-box.show{display:flex;}
+  .summary-title{font-family:'Noto Serif JP',serif;font-size:26px;color:var(--accent);}
+  .summary-sub{font-size:14px;color:var(--text2);}
+
+  /* TEST MODE */
+  .test-wrap{display:none;flex-direction:column;align-items:center;gap:18px;padding:20px 0;}
+  .test-wrap.active{display:flex;}
+  .test-score-bar{width:100%;max-width:560px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;}
+  .test-score-item{text-align:center;}
+  .test-score-num{font-size:22px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+  .test-score-label{font-size:11px;color:var(--text3);margin-top:2px;}
+  .test-card{width:100%;max-width:560px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:28px;}
+  .test-q-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:14px;letter-spacing:.08em;}
+  .test-q-word{font-family:'Noto Serif JP',serif;font-size:44px;font-weight:700;color:var(--text);text-align:center;margin-bottom:6px;}
+  .test-q-reading{font-size:14px;color:var(--text2);text-align:center;font-family:'Noto Sans JP',sans-serif;margin-bottom:22px;}
+  .test-options{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .test-opt{padding:12px 15px;border-radius:var(--radius2);border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;transition:all .15s;text-align:left;line-height:1.4;}
+  .test-opt:hover:not(.disabled){border-color:var(--border2);background:var(--bg4);}
+  .test-opt.correct{border-color:var(--green);background:rgba(110,201,154,0.12);color:var(--green);}
+  .test-opt.wrong{border-color:var(--red);background:rgba(224,112,112,0.12);color:var(--red);}
+  .test-opt.disabled{cursor:default;}
+  .test-result{display:none;flex-direction:column;align-items:center;gap:7px;padding-top:18px;border-top:1px solid var(--border);margin-top:14px;}
+  .test-result.show{display:flex;}
+  .test-result-msg{font-size:15px;font-weight:500;}
+  .correct-msg{color:var(--green);} .wrong-msg{color:var(--red);}
+  .test-result-ex{font-size:12px;color:var(--text3);font-family:'Noto Sans JP',sans-serif;text-align:center;line-height:1.7;}
+  .test-nav-btn{padding:9px 26px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;transition:all .15s;}
+  .test-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .test-nav-btn.primary{background:var(--accent);color:#1a1200;border-color:var(--accent);font-weight:600;}
+  .test-nav-btn.primary:hover{background:var(--accent2);}
+
+  @media(max-width:600px){
+    .header{padding:12px 14px;flex-direction:column;align-items:flex-start;}
+    .controls{padding:10px 14px;}
+    .main{padding:14px;}
+    .fc-front-word{font-size:46px;}
+    .fc-scene{height:280px;}
+    .test-options{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">横浜ニュース 学習カード</div>
+    <div class="header-sub">Yokohama · Kawai Masaji · 50 ta so'z</div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-pill"><span class="dot dot-all"></span><span id="stat-total">0</span> ta</div>
+    <div class="stat-pill"><span class="dot dot-green"></span><span id="stat-known">0</span> bildim</div>
+    <div class="stat-pill"><span class="dot dot-red"></span><span id="stat-unknown">0</span> bilmadim</div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="setMode('list')">📋 Ro'yxat</button>
+    <button class="mode-tab" onclick="setMode('flash')">🃏 Flashcard</button>
+    <button class="mode-tab" onclick="setMode('test')">📝 Test</button>
+  </div>
+  <div class="sep"></div>
+  <div class="filter-group">
+    <button class="filter-btn active" onclick="toggleType('all')">Hammasi</button>
+    <button class="filter-btn f-n2" onclick="toggleType('N2')">N2</button>
+    <button class="filter-btn f-n3" onclick="toggleType('N3')">N3</button>
+    <button class="filter-btn f-kanji" onclick="toggleType('kanji')">漢字</button>
+    <button class="filter-btn f-idiom" onclick="toggleType('idiom')">慣用句</button>
+    <button class="filter-btn f-expr" onclick="toggleType('expr')">表現</button>
+    <button class="filter-btn f-kawai" onclick="toggleType('kawai')">河合発言</button>
+  </div>
+  <div class="sep"></div>
+  <div class="status-filters">
+    <button class="status-btn active-all" onclick="setStatus('all')">Barchasi</button>
+    <button class="status-btn" onclick="setStatus('unknown')">Bilmaganlarim</button>
+    <button class="status-btn" onclick="setStatus('known')">Bilganlarim</button>
+  </div>
+</div>
+
+<div class="main">
+  <div id="list-mode">
+    <div class="card-grid" id="card-grid"></div>
+    <div class="empty" id="empty-msg" style="display:none">Hech narsa topilmadi</div>
+  </div>
+
+  <div class="flashcard-wrap" id="flash-mode">
+    <div class="fc-counter" id="fc-counter"></div>
+    <div class="fc-scene">
+      <div class="fc-card" id="fc-card" onclick="flipCard()">
+        <!-- FRONT -->
+        <div class="fc-face fc-front">
+          <div class="fc-front-tags" id="fc-front-tags"></div>
+          <div class="fc-front-word" id="fc-front-word"></div>
+          <div class="fc-front-hint">— bosing —</div>
+        </div>
+        <!-- BACK -->
+        <div class="fc-face fc-back">
+          <div class="fc-back-reading" id="fc-back-reading"></div>
+          <div class="fc-back-meaning" id="fc-back-meaning"></div>
+          <div class="fc-back-example">
+            <div class="bex-jp" id="fc-back-ex-jp"></div>
+            <div class="bex-uz" id="fc-back-ex-uz"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fc-btns-wrap" id="fc-btns">
+      <button class="fc-btn unknown-btn" onclick="fcMark(false)">✗ Bilmadim</button>
+      <button class="fc-btn known-btn" onclick="fcMark(true)">✓ Bildim</button>
+    </div>
+    <div class="summary-box" id="fc-summary">
+      <div class="summary-title">Tugadi! 🎉</div>
+      <div class="summary-sub" id="fc-summary-text"></div>
+      <button class="test-nav-btn primary" onclick="restartFlash()">Qayta boshlash</button>
+    </div>
+  </div>
+
+  <div class="test-wrap" id="test-mode">
+    <div class="test-score-bar">
+      <div class="test-score-item"><div class="test-score-num" id="t-correct" style="color:var(--green)">0</div><div class="test-score-label">To'g'ri</div></div>
+      <div class="test-score-item"><div class="test-score-num" id="t-wrong" style="color:var(--red)">0</div><div class="test-score-label">Noto'g'ri</div></div>
+      <div class="test-score-item"><div class="test-score-num" id="t-left" style="color:var(--accent)">0</div><div class="test-score-label">Qoldi</div></div>
+    </div>
+    <div class="test-card" id="test-card">
+      <div class="test-q-label" id="t-label"></div>
+      <div class="test-q-word" id="t-word"></div>
+      <div class="test-q-reading" id="t-reading"></div>
+      <div class="test-options" id="t-options"></div>
+      <div class="test-result" id="t-result">
+        <div class="test-result-msg" id="t-msg"></div>
+        <div class="test-result-ex" id="t-ex"></div>
+        <button class="test-nav-btn" onclick="nextTest()">Keyingisi →</button>
+      </div>
+    </div>
+    <div class="summary-box" id="test-summary">
+      <div class="summary-title" id="test-summary-title"></div>
+      <div class="summary-sub" id="test-summary-sub"></div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="test-nav-btn" onclick="restartTest()">Qayta urinish</button>
+        <button class="test-nav-btn primary" onclick="setMode('list')">Ro'yxatga qaytish</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORDS = [
+  // ── YOKOHAMA YANGILIK SO'ZLARI ──
+  {id:1,word:"人口",reading:"じんこう",meaning:"Aholi, xalq soni",type:["N3","kanji"],example:"日本の人口は減っています。",exuz:"Yaponiya aholisi kamaymoqda."},
+  {id:2,word:"人口減少",reading:"じんこうげんしょう",meaning:"Aholining kamayishi",type:["N2","kanji"],example:"人口減少は全国で進んでいます。",exuz:"Aholi kamayishi butun mamlakatda davom etmoqda."},
+  {id:3,word:"国勢調査",reading:"こくせいちょうさ",meaning:"Aholini ro'yxatga olish (davlat so'rovi)",type:["N2","kanji"],example:"国勢調査の結果が発表された。",exuz:"Ro'yxatga olish natijalari e'lon qilindi."},
+  {id:4,word:"減少",reading:"げんしょう",meaning:"Kamayish, qisqarish",type:["N3","kanji"],example:"売り上げが減少した。",exuz:"Savdo hajmi kamaydi."},
+  {id:5,word:"減少幅",reading:"げんしょうはば",meaning:"Kamayish miqdori / ko'rsatkichi",type:["N2","kanji"],example:"過去最大の減少幅を記録した。",exuz:"Tarixdagi eng katta kamayish qayd etildi."},
+  {id:6,word:"観光客",reading:"かんこうきゃく",meaning:"Sayyoh, turist",type:["N3","kanji"],example:"観光客が増えている。",exuz:"Sayyohlar soni ortmoqda."},
+  {id:7,word:"修学旅行",reading:"しゅうがくりょこう",meaning:"Maktab ekskursiyasi",type:["N2","kanji"],example:"修学旅行で京都に行った。",exuz:"Maktab ekskursiyasida Kiotoga bordim."},
+  {id:8,word:"異変",reading:"いへん",meaning:"G'alati hodisa, kutilmagan o'zgarish",type:["N2","kanji"],example:"この街で異変が起きている。",exuz:"Bu shaharchada g'alati bir hodisa yuz bermoqda."},
+  {id:9,word:"賑わう",reading:"にぎわう",meaning:"Gavjum bo'lmoq, jonli bo'lmoq",type:["N3","kanji"],example:"駅前が賑わっている。",exuz:"Stansiya oldida odamlar gavjum."},
+  {id:10,word:"転出",reading:"てんしゅつ",meaning:"Boshqa joyga ko'chib chiqish (rasmiy)",type:["N2","kanji"],example:"都市から転出する人が増えた。",exuz:"Shahardan ko'chib chiquvchilar ko'paydi."},
+  {id:11,word:"対策",reading:"たいさく",meaning:"Chora-tadbir, qaror",type:["N3","kanji"],example:"少子化への対策が必要だ。",exuz:"Tug'ilish kamayishiga qarshi choralar kerak."},
+  {id:12,word:"都心",reading:"としん",meaning:"Shahar markazi",type:["N3","kanji"],example:"都心に近い場所に住みたい。",exuz:"Shahar markaziga yaqin joyda yashagim keladi."},
+  {id:13,word:"住宅",reading:"じゅうたく",meaning:"Uy-joy, turar joy",type:["N3","kanji"],example:"住宅が多く建てられた。",exuz:"Ko'plab uy-joylar qurildi."},
+  {id:14,word:"発表",reading:"はっぴょう",meaning:"E'lon qilish, taqdim etish",type:["N3","kanji"],example:"調査結果が発表された。",exuz:"Tekshiruv natijalari e'lon qilindi."},
+  {id:15,word:"自治体",reading:"じちたい",meaning:"Mahalliy hokimiyat / boshqaruv",type:["N2","kanji"],example:"各自治体で対策を進めている。",exuz:"Har bir mahalliy hokimiyat choralar ko'rmoqda."},
+  {id:16,word:"政令指定都市",reading:"せいれいしていとし",meaning:"Hukumat farmoni bilan tasdiqlangan yirik shahar (500k+)",type:["N2","kanji"],example:"大阪は政令指定都市だ。",exuz:"Osaka — seirei shitei toshi."},
+  {id:17,word:"地方",reading:"ちほう",meaning:"Viloyat, mahalliy hudud, qishloq joy",type:["N3","kanji"],example:"地方の人口減少が深刻だ。",exuz:"Viloyatlardagi aholi kamayishi jiddiy."},
+  {id:18,word:"影響",reading:"えいきょう",meaning:"Ta'sir",type:["N3","kanji"],example:"人口減少の影響は大きい。",exuz:"Aholi kamayishining ta'siri katta."},
+  {id:19,word:"課題",reading:"かだい",meaning:"Muammo, hal qilinishi kerak bo'lgan masala",type:["N3","kanji"],example:"これが日本の大きな課題だ。",exuz:"Bu Yaponiyaning katta muammosi."},
+  {id:20,word:"波及",reading:"はきゅう",meaning:"Tarqalmoq, yoyilmoq (ta'sir)",type:["N2","kanji"],example:"影響が全国に波及した。",exuz:"Ta'sir butun mamlakatga yoyildi."},
+  {id:21,word:"鮮明",reading:"せんめい",meaning:"Aniq, ravshan, yaqqol ko'rinarli",type:["N2","kanji"],example:"問題が鮮明になった。",exuz:"Muammo yaqqol ko'rindi."},
+  {id:22,word:"発足",reading:"ほっそく",meaning:"Tashkil topish, ish boshlash (tashkilot)",type:["N2","kanji"],example:"市の発足以来初めてだ。",exuz:"Shahar tashkil topganidan beri birinchi marta."},
+  {id:23,word:"喫緊",reading:"きっきん",meaning:"Shoshilinch, eng dolzarb",type:["N2","kanji"],example:"喫緊の課題に取り組む。",exuz:"Eng dolzarb muammoni hal qilish kerak."},
+  {id:24,word:"各地",reading:"かくち",meaning:"Hamma joy, turli hududlar",type:["N3","kanji"],example:"各地で問題が起きている。",exuz:"Hamma yerda muammolar yuzaga kelmoqda."},
+  {id:25,word:"勤務",reading:"きんむ",meaning:"Ishlash, xizmat qilish (rasmiy)",type:["N2","kanji"],example:"以前この会社に勤務していた。",exuz:"Ilgari bu kompaniyada ishlagandim."},
+  {id:26,word:"食い止める",reading:"くいとめる",meaning:"To'xtatmoq, oldini olmoq (kuchli iboora)",type:["idiom"],example:"若者の流出を食い止めたい。",exuz:"Yoshlarning ketib qolishini to'xtatmoqchimiz."},
+  {id:27,word:"転じる",reading:"てんじる",meaning:"O'zgarmoq, boshqa tomonga burilmoq",type:["N2","expr"],example:"増加から減少に転じた。",exuz:"Ko'payishdan kamayishga o'tdi."},
+  {id:28,word:"下回る",reading:"したまわる",meaning:"Past bo'lmoq, belgilangan chegaradan pastga tushmoq",type:["N2","kanji"],example:"目標を下回る結果だった。",exuz:"Natija maqsaddan past bo'ldi."},
+  {id:29,word:"受け入れる",reading:"うけいれる",meaning:"Qabul qilmoq, tan olmoq",type:["N3","expr"],example:"現実を受け入れる必要がある。",exuz:"Haqiqatni qabul qilish kerak."},
+  {id:30,word:"〜ぶりに",reading:"〜ぶりに",meaning:"…vaqt o'tgandan keyin birinchi marta",type:["N2","expr"],example:"10年ぶりに会った。",exuz:"10 yil o'tgach uchrashdi."},
+  {id:31,word:"〜以来",reading:"〜いらい",meaning:"…dan beri (birinchi marta bilan birga ishlatiladi)",type:["N2","expr"],example:"創業以来初めての赤字だ。",exuz:"Tashkil topgandan beri birinchi zarar."},
+  {id:32,word:"〜を除く",reading:"〜をのぞく",meaning:"…dan tashqari, …ni hisobga olmasdan",type:["N2","expr"],example:"東京を除く全ての県で減少した。",exuz:"Tokiodan tashqari barcha prefekturada kamaydi."},
+  {id:33,word:"住みやすい",reading:"すみやすい",meaning:"Yashashga qulay",type:["N3","expr"],example:"この街はとても住みやすい。",exuz:"Bu shahar yashashga juda qulay."},
+  {id:34,word:"過去最大",reading:"かこさいだい",meaning:"Tarixdagi eng katta / yuqori ko'rsatkich",type:["N2","expr"],example:"過去最大の減少幅を記録した。",exuz:"Tarixdagi eng katta kamayish qayd etildi."},
+  {id:35,word:"ベッドタウン",reading:"ベッドタウン",meaning:"Yotoqxona shaharchasi (dormitory town)",type:["N2","expr"],example:"郊外はベッドタウンとして発展した。",exuz:"Shahar atrofi yotoqxona shaharchasi sifatida rivojlandi."},
+
+  // ── KAWAI MASAJI GAPLARI ──
+  {id:36,word:"衝撃",reading:"しょうげき",meaning:"Zarba, shok, hayajonli xabar",type:["N2","kanji","kawai"],example:"衝撃の結果が発表された。",exuz:"Hayajonli natijalar e'lon qilindi."},
+  {id:37,word:"前提",reading:"ぜんてい",meaning:"Oldindan qabul qilingan shart / taxmin",type:["N2","kanji","kawai"],example:"それを前提に計画を立てよう。",exuz:"Buni asos qilib reja tuzaylik."},
+  {id:38,word:"前提とした",reading:"ぜんていとした",meaning:"…ni asos qilib olgan, …ni muqarrar deb qabul qilgan",type:["N2","expr","kawai"],example:"人口減少を前提とした社会を作る。",exuz:"Aholi kamayishini qabul qilgan jamiyat qurilsin."},
+  {id:39,word:"緩やかに",reading:"ゆるやかに",meaning:"Sekin-asta, yumshoq tarzda, keskin o'zgarishlarsiz",type:["N2","expr","kawai"],example:"緩やかに変化していく必要がある。",exuz:"Asta-sekin o'zgarib borish kerak."},
+  {id:40,word:"変化",reading:"へんか",meaning:"O'zgarish",type:["N3","kanji","kawai"],example:"社会が変化している。",exuz:"Jamiyat o'zgarmoqda."},
+  {id:41,word:"取り組み",reading:"とりくみ",meaning:"Sa'y-harakat, yondashuv, ish (rasmiy)",type:["N2","kanji","kawai"],example:"新しい取り組みを始めた。",exuz:"Yangi sa'y-harakatlar boshlandi."},
+  {id:42,word:"一生懸命",reading:"いっしょうけんめい",meaning:"Bor kuch bilan, jiddiy kirishib, qattiq tirishib",type:["N3","expr","kawai"],example:"一生懸命勉強した。",exuz:"Bor kuchim bilan o'qidim."},
+  {id:43,word:"政策的",reading:"せいさくてき",meaning:"Siyosat jihatidan, siyosiy nuqtai nazardan",type:["N2","kanji","kawai"],example:"政策的な対応が必要だ。",exuz:"Siyosiy chora ko'rish kerak."},
+  {id:44,word:"社会",reading:"しゃかい",meaning:"Jamiyat",type:["N3","kanji","kawai"],example:"社会が変わっていく。",exuz:"Jamiyat o'zgarib bormoqda."},
+  {id:45,word:"むしろ",reading:"むしろ",meaning:"Aksincha, balki, hatto (ziddiyatni bildiradi)",type:["N2","expr","kawai"],example:"むしろそっちの方がいい。",exuz:"Aksincha, u tomoni yaxshiroq."},
+  {id:46,word:"〜ということはできない",reading:"〜ということはできない",meaning:"…degan narsa mumkin emas (g'oyani inkor etish)",type:["N2","expr","kawai"],example:"完全に防ぐということはできない。",exuz:"To'liq oldini olish mumkin emas."},
+  {id:47,word:"〜を前提として",reading:"〜をぜんていとして",meaning:"…ni asos qilib, …ni taxmin qilib",type:["N2","expr","kawai"],example:"それを前提として話を進めよう。",exuz:"Buni asos qilib muhokamani davom ettiraylik."},
+  {id:48,word:"進める",reading:"すすめる",meaning:"Oldinga surmoq, amalga oshirmoq, davom ettirmoq",type:["N3","kanji","kawai"],example:"計画を進める必要がある。",exuz:"Rejani amalga oshirish kerak."},
+  {id:49,word:"正しい",reading:"ただしい",meaning:"To'g'ri, haq, adolatli",type:["N3","kanji","kawai"],example:"これが正しい方法だと思う。",exuz:"Bu to'g'ri yo'l deb o'ylayman."},
+  {id:50,word:"〜ていった方がいい",reading:"〜ていったほうがいい",meaning:"…qilib ketgan ma'qul (harakatni davom ettirishni tavsiya etish)",type:["N2","expr","kawai"],example:"少しずつ変えていった方がいい。",exuz:"Asta-sekin o'zgartirib borgan ma'qul."},
+];
+
+let known = JSON.parse(localStorage.getItem('yokohama_v2_known')||'[]');
+let currentMode='list', typeFilter='all', statusFilter='all';
+let fcQueue=[], fcIndex=0, fcFlipped=false;
+let testQueue=[], testIndex=0, testCorrect=0, testWrong=0, testAnswered=false;
+
+function saveKnown(){localStorage.setItem('yokohama_v2_known',JSON.stringify(known));}
+function isKnown(id){return known.includes(id);}
+function markKnown(id,val){
+  if(val){if(!known.includes(id))known.push(id);}
+  else{known=known.filter(x=>x!==id);}
+  saveKnown(); updateStats();
+}
+
+function updateStats(){
+  const f=getFiltered();
+  document.getElementById('stat-total').textContent=f.length;
+  document.getElementById('stat-known').textContent=f.filter(w=>isKnown(w.id)).length;
+  document.getElementById('stat-unknown').textContent=f.filter(w=>!isKnown(w.id)).length;
+}
+
+function getFiltered(){
+  return WORDS.filter(w=>{
+    const tm=typeFilter==='all'||w.type.includes(typeFilter);
+    const sm=statusFilter==='all'||(statusFilter==='known'&&isKnown(w.id))||(statusFilter==='unknown'&&!isKnown(w.id));
+    return tm&&sm;
+  });
+}
+
+function tagHTML(types){
+  const map={N2:'tag-n2',N3:'tag-n3',kanji:'tag-kanji',idiom:'tag-idiom',expr:'tag-expr',kawai:'tag-kawai'};
+  return types.map(t=>`<span class="tag ${map[t]||''}">${t==='kawai'?'河合発言':t}</span>`).join('');
+}
+
+function renderList(){
+  const grid=document.getElementById('card-grid');
+  const empty=document.getElementById('empty-msg');
+  const words=getFiltered();
+  grid.innerHTML='';
+  if(!words.length){empty.style.display='block';return;}
+  empty.style.display='none';
+  words.forEach(w=>{
+    const k=isKnown(w.id);
+    const d=document.createElement('div');
+    d.className='card'+(k?' known':'');
+    d.id='card-'+w.id;
+    d.innerHTML=`
+      <div class="card-top">
+        <div class="card-word">${w.word}</div>
+        <div class="card-tags">${tagHTML(w.type)}</div>
+      </div>
+      <div class="card-reading">${w.reading}</div>
+      <div class="card-meaning">${w.meaning}</div>
+      <div class="card-example">
+        <div class="ex-jp">${w.example}</div>
+        <div class="ex-uz">${w.exuz}</div>
+      </div>
+      <div class="card-btns">
+        <button class="btn-dontknow" onclick="event.stopPropagation();markCard(${w.id},false)">✗ Bilmadim</button>
+        <button class="btn-know" onclick="event.stopPropagation();markCard(${w.id},true)">✓ Bildim</button>
+      </div>`;
+    grid.appendChild(d);
+  });
+  updateStats();
+}
+
+function markCard(id,val){
+  markKnown(id,val);
+  const c=document.getElementById('card-'+id);
+  if(c){c.classList.toggle('known',val);}
+}
+
+// ── FLASHCARD ──
+function startFlash(){
+  fcQueue=[...getFiltered()].sort(()=>Math.random()-.5);
+  fcIndex=0; fcFlipped=false;
+  document.getElementById('fc-summary').classList.remove('show');
+  document.getElementById('fc-card').parentElement.style.display='block';
+  showFC();
+}
+
+function showFC(){
+  if(fcIndex>=fcQueue.length){finishFlash();return;}
+  const w=fcQueue[fcIndex];
+  fcFlipped=false;
+  document.getElementById('fc-counter').textContent=`${fcIndex+1} / ${fcQueue.length}`;
+  // FRONT
+  document.getElementById('fc-front-tags').innerHTML=tagHTML(w.type);
+  document.getElementById('fc-front-word').textContent=w.word;
+  // BACK
+  document.getElementById('fc-back-reading').textContent=w.reading;
+  document.getElementById('fc-back-meaning').textContent=w.meaning;
+  document.getElementById('fc-back-ex-jp').textContent=w.example;
+  document.getElementById('fc-back-ex-uz').textContent=w.exuz;
+  // reset flip
+  document.getElementById('fc-card').classList.remove('flipped');
+  document.getElementById('fc-btns').classList.remove('show');
+}
+
+function flipCard(){
+  if(fcFlipped)return;
+  fcFlipped=true;
+  document.getElementById('fc-card').classList.add('flipped');
+  setTimeout(()=>document.getElementById('fc-btns').classList.add('show'),300);
+}
+
+function fcMark(val){
+  markKnown(fcQueue[fcIndex].id,val);
+  fcIndex++;
+  showFC();
+}
+
+function finishFlash(){
+  const words=getFiltered();
+  const k=words.filter(w=>isKnown(w.id)).length;
+  document.getElementById('fc-card').parentElement.style.display='none';
+  document.getElementById('fc-btns').classList.remove('show');
+  document.getElementById('fc-counter').textContent='';
+  document.getElementById('fc-summary-text').textContent=`${words.length} ta so'zdan ${k} tasini bilasiz (${Math.round(k/words.length*100)}%)`;
+  document.getElementById('fc-summary').classList.add('show');
+  updateStats();
+}
+
+function restartFlash(){
+  document.getElementById('fc-summary').classList.remove('show');
+  document.getElementById('fc-card').parentElement.style.display='block';
+  startFlash();
+}
+
+// ── TEST ──
+function startTest(){
+  testQueue=[...getFiltered()].sort(()=>Math.random()-.5);
+  testIndex=0; testCorrect=0; testWrong=0;
+  document.getElementById('test-summary').classList.remove('show');
+  document.getElementById('test-card').style.display='block';
+  updateTestScore(); showTest();
+}
+
+function updateTestScore(){
+  document.getElementById('t-correct').textContent=testCorrect;
+  document.getElementById('t-wrong').textContent=testWrong;
+  document.getElementById('t-left').textContent=Math.max(0,testQueue.length-testIndex);
+}
+
+function showTest(){
+  if(testIndex>=testQueue.length){finishTest();return;}
+  const w=testQueue[testIndex];
+  testAnswered=false;
+  document.getElementById('t-label').textContent=`SAVOL ${testIndex+1} / ${testQueue.length}`;
+  document.getElementById('t-word').textContent=w.word;
+  document.getElementById('t-reading').textContent=w.reading;
+  document.getElementById('t-result').classList.remove('show');
+  const others=WORDS.filter(x=>x.id!==w.id).sort(()=>Math.random()-.5).slice(0,3);
+  const opts=[w,...others].sort(()=>Math.random()-.5);
+  const od=document.getElementById('t-options');
+  od.innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='test-opt';
+    b.textContent=o.meaning;
+    b.onclick=()=>answerTest(o.id===w.id,b,w);
+    od.appendChild(b);
+  });
+}
+
+function answerTest(correct,btn,w){
+  if(testAnswered)return;
+  testAnswered=true;
+  document.querySelectorAll('.test-opt').forEach(b=>{
+    b.classList.add('disabled');
+    if(b.textContent===w.meaning)b.classList.add('correct');
+  });
+  if(!correct){btn.classList.add('wrong');testWrong++;}
+  else testCorrect++;
+  markKnown(w.id,correct);
+  const msg=document.getElementById('t-msg');
+  msg.className='test-result-msg '+(correct?'correct-msg':'wrong-msg');
+  msg.textContent=correct?'✓ To\'g\'ri!':'✗ Noto\'g\'ri';
+  document.getElementById('t-ex').innerHTML=`${w.example}<br><span style="color:var(--text3);font-size:11px">${w.exuz}</span>`;
+  document.getElementById('t-result').classList.add('show');
+  updateTestScore();
+}
+
+function nextTest(){testIndex++;updateTestScore();showTest();}
+
+function finishTest(){
+  document.getElementById('test-card').style.display='none';
+  const pct=Math.round(testCorrect/testQueue.length*100);
+  const grade=pct>=90?'🏆 Ajoyib!':pct>=70?'👍 Yaxshi!':pct>=50?'📚 Davom eting':'💪 Ko\'proq mashq kerak';
+  document.getElementById('test-summary-title').textContent=`${pct}% · ${grade}`;
+  document.getElementById('test-summary-sub').textContent=`${testQueue.length} ta savoldan ${testCorrect} tasi to'g'ri`;
+  document.getElementById('test-summary').classList.add('show');
+  updateStats();
+}
+
+function restartTest(){
+  document.getElementById('test-summary').classList.remove('show');
+  document.getElementById('test-card').style.display='block';
+  startTest();
+}
+
+// ── MODE / FILTER ──
+function setMode(mode){
+  currentMode=mode;
+  document.querySelectorAll('.mode-tab').forEach((t,i)=>t.classList.toggle('active',['list','flash','test'][i]===mode));
+  document.getElementById('list-mode').style.display=mode==='list'?'block':'none';
+  document.getElementById('flash-mode').classList.toggle('active',mode==='flash');
+  document.getElementById('test-mode').classList.toggle('active',mode==='test');
+  if(mode==='list')renderList();
+  if(mode==='flash')startFlash();
+  if(mode==='test')startTest();
+}
+
+function toggleType(t){
+  typeFilter=t;
+  const labels={all:'Hammasi',N2:'N2',N3:'N3',kanji:'漢字',idiom:'慣用句',expr:'表現',kawai:'河合発言'};
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.textContent.trim()===labels[t]));
+  refresh();
+}
+
+function setStatus(s){
+  statusFilter=s;
+  document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active-all','active-known','active-unknown'));
+  const idx=['all','unknown','known'].indexOf(s);
+  document.querySelectorAll('.status-btn')[idx].classList.add(['active-all','active-unknown','active-known'][idx]);
+  refresh();
+}
+
+function refresh(){
+  if(currentMode==='list')renderList();
+  else if(currentMode==='flash')startFlash();
+  else if(currentMode==='test')startTest();
+  updateStats();
+}
+
+renderList(); updateStats();
+</script>
+</body>
+</html>
