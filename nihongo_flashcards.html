@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本語 — Flashcard & Test (AI)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F1E8;          /* warm cream background */
+    --ink:#2B1B0E;         /* main dark text */
+    --muted:#8A7A65;       /* furigana / secondary */
+    --accent:#C97A40;      /* accent */
+    --accent-2:#E0995A;
+    --correct:#4F7A3D;     /* correct */
+    --wrong:#B24A3D;       /* wrong */
+    --card-front:#fff8ec;  /* ivory card front */
+    --card-back:#1a0f3c;   /* dark navy card back */
+    --card-back-text:#F5E6C8;
+    --line:rgba(43,27,14,0.12);
+    --line2:rgba(43,27,14,0.20);
+    --paper:#FBF8F1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Noto Sans JP','Inter',sans-serif;min-height:100%;}
+  body{display:flex;justify-content:center;}
+  #root{width:100%;}
+  button{font-family:inherit;cursor:pointer;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:rgba(43,27,14,0.18);border-radius:8px;}
+
+  /* ---- App shell ---- */
+  .app{max-width:460px;margin:0 auto;min-height:100vh;padding:0 0 90px;position:relative;}
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(245,241,232,0.92);backdrop-filter:blur(8px);
+          border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;gap:10px;}
+  .topbar .ttl{font-family:'Cinzel',serif;font-weight:600;font-size:18px;letter-spacing:.04em;color:var(--ink);flex:1;}
+  .topbar .jp{font-family:'Noto Serif JP',serif;color:var(--accent);font-weight:700;}
+  .iconbtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--paper);
+           display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink);transition:.15s;}
+  .iconbtn:hover{border-color:var(--accent);color:var(--accent);}
+  .iconbtn.ghost{border:none;background:transparent;}
+
+  .wrap{padding:18px;}
+  .pop{animation:pop .32s cubic-bezier(.2,.8,.2,1);}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985);}to{opacity:1;transform:none;}}
+  .slide{animation:slide .3s ease;}
+  @keyframes slide{from{opacity:0;transform:translateX(26px);}to{opacity:1;transform:none;}}
+
+  .section-title{font-family:'Cinzel',serif;font-size:15px;letter-spacing:.06em;color:var(--muted);
+                 text-transform:uppercase;margin:4px 2px 12px;font-weight:600;}
+
+  /* ---- Deck cards ---- */
+  .deck-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .deck{border-radius:18px;padding:15px 15px 13px;color:#fff;position:relative;overflow:hidden;
+        min-height:128px;display:flex;flex-direction:column;justify-content:space-between;
+        box-shadow:0 6px 18px rgba(43,27,14,0.12);transition:transform .12s, box-shadow .2s;border:none;text-align:left;}
+  .deck:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(43,27,14,0.2);}
+  .deck .emoji{font-size:26px;}
+  .deck .dname{font-family:'Noto Serif JP',serif;font-weight:700;font-size:16px;line-height:1.25;margin-top:6px;
+               text-shadow:0 1px 4px rgba(0,0,0,.25);}
+  .deck .dprev{font-family:'Noto Serif JP',serif;font-size:12.5px;opacity:.9;margin-top:5px;line-height:1.5;
+               display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .deck .dcount{position:absolute;top:13px;right:13px;background:rgba(255,255,255,0.22);border-radius:20px;
+                padding:2px 9px;font-size:11px;font-weight:600;}
+  .deck-add{border:2px dashed var(--line2);border-radius:18px;background:var(--paper);color:var(--accent);
+            min-height:128px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+            font-weight:600;font-size:14px;transition:.15s;}
+  .deck-add:hover{border-color:var(--accent);background:#fff;}
+  .deck-add .plus{font-size:30px;line-height:1;}
+
+  /* ---- Generic buttons ---- */
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:16px;
+       border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:15px;font-weight:600;transition:.15s;}
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn.primary:hover{background:var(--accent-2);}
+  .btn.dark{background:var(--card-back);color:var(--card-back-text);border-color:var(--card-back);}
+  .btn.sm{padding:10px 14px;width:auto;font-size:13px;border-radius:12px;}
+  .btn.danger{color:var(--wrong);border-color:rgba(178,74,61,.4);}
+  .btn.danger:hover{background:rgba(178,74,61,.08);}
+  .row{display:flex;gap:10px;}
+  .stack{display:flex;flex-direction:column;gap:11px;}
+
+  .crumb{display:flex;align-items:center;gap:8px;margin-bottom:14px;color:var(--muted);font-size:13px;}
+  .crumb b{color:var(--ink);font-family:'Noto Serif JP',serif;font-size:18px;font-weight:700;}
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+  .pill{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:6px 13px;font-size:12.5px;
+        display:flex;align-items:center;gap:6px;color:var(--muted);}
+  .pill b{color:var(--ink);}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+  /* ---- Group select ---- */
+  .group-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .group{border-radius:15px;padding:16px 14px;color:#fff;border:none;text-align:left;min-height:84px;
+         display:flex;flex-direction:column;justify-content:space-between;transition:transform .12s;box-shadow:0 5px 14px rgba(43,27,14,.12);}
+  .group:hover{transform:translateY(-2px);}
+  .group .gnum{font-family:'Cinzel',serif;font-weight:700;font-size:16px;}
+  .group .gmeta{font-size:12px;opacity:.92;margin-top:6px;}
+  .group.full{grid-column:span 2;flex-direction:row;align-items:center;justify-content:space-between;}
+  .qlist{display:flex;flex-direction:column;gap:10px;}
+  .qrow{border-radius:14px;padding:14px 16px;color:#fff;border:none;display:flex;align-items:center;justify-content:space-between;
+        box-shadow:0 4px 12px rgba(43,27,14,.12);transition:transform .12s;}
+  .qrow:hover{transform:translateX(3px);}
+  .qrow .qt{font-weight:700;font-family:'Cinzel',serif;}
+  .qrow .qm{font-size:12px;opacity:.92;}
+
+  /* ---- Flashcard ---- */
+  .fc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .fc-count{font-family:'Cinzel',serif;color:var(--muted);font-size:14px;letter-spacing:.05em;}
+  .progress{height:7px;background:rgba(43,27,14,.1);border-radius:10px;overflow:hidden;margin-bottom:18px;}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s;}
+  .scene{perspective:1200px;width:100%;height:360px;margin-bottom:18px;}
+  .flip{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .58s cubic-bezier(.4,0,.2,1);cursor:pointer;}
+  .flip.flipped{transform:rotateY(180deg);}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:22px;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px;text-align:center;
+        box-shadow:0 12px 34px rgba(43,27,14,.18);}
+  .face.front{background:var(--card-front);border:1px solid var(--line);}
+  .face.front .kanji{font-family:'Noto Serif JP',serif;font-weight:700;color:var(--ink);font-size:62px;line-height:1.12;word-break:break-word;}
+  .face.front .hint{position:absolute;bottom:18px;color:var(--muted);font-size:12px;font-family:'Cinzel',serif;letter-spacing:.05em;}
+  .face.front .jlpt{position:absolute;top:18px;right:18px;}
+  .face.back{background:var(--card-back);transform:rotateY(180deg);border:1px solid var(--card-back);}
+  .face.back .mean{color:var(--card-back-text);font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:12px;}
+  .face.back .read{color:var(--accent-2);font-size:1.35rem;font-family:'Noto Sans JP',sans-serif;margin-bottom:16px;}
+  .face.back .sent{color:#d9cfe8;font-family:'Noto Serif JP',serif;font-size:14px;line-height:1.9;border-top:1px solid rgba(255,255,255,.15);padding-top:14px;width:100%;}
+  .face.back .sent .uz{color:#a99fc4;font-size:12px;display:block;margin-top:5px;}
+  .jlpt-badge{font-family:'Cinzel',serif;font-weight:700;font-size:11px;padding:3px 9px;border-radius:20px;letter-spacing:.04em;}
+
+  /* ---- Quiz ---- */
+  .q-scorebar{display:flex;justify-content:space-around;background:var(--paper);border:1px solid var(--line);
+              border-radius:16px;padding:13px;margin-bottom:16px;}
+  .q-scorebar .it{text-align:center;}
+  .q-scorebar .n{font-family:'Cinzel',serif;font-weight:700;font-size:20px;}
+  .q-scorebar .l{font-size:11px;color:var(--muted);margin-top:2px;}
+  .q-card{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:22px;}
+  .q-badge{display:inline-block;font-family:'Noto Serif JP',serif;font-size:12px;background:rgba(201,122,64,.12);
+           color:var(--accent);border:1px solid rgba(201,122,64,.3);border-radius:20px;padding:3px 12px;margin-bottom:16px;}
+  .q-prompt{text-align:center;margin-bottom:20px;}
+  .q-prompt .big{font-family:'Noto Serif JP',serif;font-weight:700;font-size:42px;color:var(--ink);line-height:1.15;word-break:break-word;}
+  .q-prompt .med{font-size:21px;font-weight:600;color:var(--ink);line-height:1.4;}
+  .q-prompt .sub{color:var(--muted);font-size:14px;margin-top:6px;font-family:'Noto Sans JP',sans-serif;}
+  .q-opts{display:flex;flex-direction:column;gap:10px;}
+  .q-opt{padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);
+         font-size:16px;text-align:left;transition:.13s;font-family:'Noto Serif JP',serif;line-height:1.4;}
+  .q-opt:hover:not(:disabled){border-color:var(--accent);}
+  .q-opt:disabled{cursor:default;}
+  .q-opt.correct{border-color:var(--correct);background:rgba(79,122,61,.12);color:var(--correct);font-weight:700;}
+  .q-opt.wrong{border-color:var(--wrong);background:rgba(178,74,61,.12);color:var(--wrong);}
+  .q-feedback{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);}
+  .q-feedback .fmsg{font-weight:700;margin-bottom:8px;}
+  .q-feedback .ok{color:var(--correct);}
+  .q-feedback .no{color:var(--wrong);}
+  .q-feedback .ans{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px;line-height:1.7;}
+  .q-feedback .ans .k{font-family:'Noto Serif JP',serif;font-weight:700;font-size:18px;}
+  .q-feedback .ans .r{color:var(--accent);}
+  .q-feedback .ans .m{color:var(--muted);}
+
+  /* ---- Result ---- */
+  .result{text-align:center;padding:24px 6px;}
+  .result .score{font-family:'Cinzel',serif;font-size:54px;font-weight:700;color:var(--accent);}
+  .result .grade{font-family:'Noto Serif JP',serif;font-size:22px;margin:6px 0 4px;}
+  .result .sub{color:var(--muted);margin-bottom:20px;}
+  .wrong-list{text-align:left;margin:16px 0;display:flex;flex-direction:column;gap:8px;}
+  .wrong-item{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--wrong);border-radius:10px;padding:11px 13px;}
+  .wrong-item .k{font-family:'Noto Serif JP',serif;font-weight:700;font-size:17px;}
+  .wrong-item .r{color:var(--accent);font-size:13px;}
+  .wrong-item .m{color:var(--muted);font-size:13px;}
+
+  /* ---- Word list (manage) ---- */
+  .wcard{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px;}
+  .wcard .wtop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .wcard .wk{font-family:'Noto Serif JP',serif;font-weight:700;font-size:20px;color:var(--ink);}
+  .wcard .wr{color:var(--accent);font-size:13px;font-family:'Noto Sans JP',sans-serif;margin-top:1px;}
+  .wcard .wm{color:var(--ink);font-size:14px;margin-top:5px;}
+  .wcard .ws{color:var(--muted);font-size:12.5px;font-family:'Noto Serif JP',serif;margin-top:6px;line-height:1.7;}
+  .wcard .wact{display:flex;gap:6px;}
+  .miniicon{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .miniicon:hover{border-color:var(--accent);}
+  .search{width:100%;padding:12px 14px;border-radius:13px;border:1px solid var(--line);background:var(--paper);font-size:14px;color:var(--ink);margin-bottom:14px;font-family:inherit;}
+  .search:focus{outline:none;border-color:var(--accent);}
+
+  /* ---- Modal ---- */
+  .overlay{position:fixed;inset:0;background:rgba(43,27,14,.42);backdrop-filter:blur(3px);z-index:200;
+           display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fade .2s;}
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+  .modal{background:var(--bg);width:100%;max-width:460px;border-radius:22px 22px 0 0;padding:20px 18px 26px;
+         max-height:92vh;overflow-y:auto;animation:up .28s cubic-bezier(.2,.8,.2,1);}
+  @keyframes up{from{transform:translateY(40px);opacity:.5;}to{transform:none;opacity:1;}}
+  .modal h3{font-family:'Noto Serif JP',serif;font-size:19px;margin-bottom:4px;}
+  .modal .msub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+  .field input,.field textarea,.field select{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);
+       background:var(--paper);font-size:15px;color:var(--ink);font-family:inherit;}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--accent);}
+  .field textarea{resize:vertical;min-height:54px;font-family:'Noto Serif JP',serif;}
+  .field .jp{font-family:'Noto Serif JP',serif;}
+  .emoji-pick{display:flex;flex-wrap:wrap;gap:7px;}
+  .emoji-pick button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--paper);font-size:21px;}
+  .emoji-pick button.sel{border-color:var(--accent);background:#fff;box-shadow:0 0 0 2px rgba(201,122,64,.25);}
+  .note{font-size:12px;color:var(--muted);line-height:1.6;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:4px;}
+  .err{background:rgba(178,74,61,.1);border:1px solid rgba(178,74,61,.3);color:var(--wrong);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px;}
+  .spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;}
+  .spinner.dark{border-color:rgba(43,27,14,.25);border-top-color:var(--accent);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .empty{text-align:center;color:var(--muted);padding:50px 20px;}
+  .empty .em{font-size:40px;margin-bottom:10px;}
+  .fab{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);max-width:460px;width:calc(100% - 36px);z-index:40;}
+  .ai-preview{background:var(--card-back);color:var(--card-back-text);border-radius:16px;padding:16px;margin:14px 0;}
+  .ai-preview .pk{font-family:'Noto Serif JP',serif;font-size:28px;font-weight:700;}
+  .ai-preview .pr{color:var(--accent-2);font-size:15px;margin-top:2px;}
+  .ai-preview .pm{font-size:16px;margin-top:8px;}
+  .ai-preview .psent{font-family:'Noto Serif JP',serif;font-size:13.5px;line-height:1.8;margin-top:10px;color:#d9cfe8;border-top:1px solid rgba(255,255,255,.15);padding-top:10px;}
+  .ai-preview .psent .uz{display:block;color:#a99fc4;font-size:12px;margin-top:4px;}
+  .tag-jlpt{font-size:11px;font-weight:700;padding:2px 8px;border-radius:14px;font-family:'Cinzel',serif;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Seed vocabulary from basic_0.json -->
+<script id="seed-data" type="application/json">{"name":"basic_0","desc":"","cards":[{"o":"成功","sl":"ja","t":["muvaffaqiyat"],"tl":"uz"},{"o":"手術","sl":"ja","t":["jarrohlik "],"tl":"uz"},{"o":"態度","sl":"ja","t":["munosabat "],"tl":"uz"},{"o":"とにかく","sl":"ja","t":["baribir"],"tl":"uz"},{"o":"幾つか","sl":"ja","t":["bir nechta"],"tl":"uz"},{"o":"発見","sl":"ja","t":["kashfiyot "],"tl":"uz"},{"o":"発信","sl":"ja","t":["передача (сообщения и т.п.)"],"tl":"uz"},{"o":"改めて","sl":"ja","t":["yana"],"tl":"uz"},{"o":"優雅","sl":"ja","t":["элегантный"],"tl":"uz"},{"o":"興奮","sl":"ja","t":["hayajon "],"tl":"uz"},{"o":"凄い","sl":"ja","t":["ajoyib "],"tl":"uz"},{"o":"寝台車","sl":"ja","t":["спальный вагон"],"tl":"uz"},{"o":"ベランダ","sl":"ja","t":["balkon"],"tl":"uz"},{"o":"沸かす","sl":"ja","t":["qaynatmoq"],"tl":"uz"},{"o":"昨夜","sl":"ja","t":["прошлая ночь"],"tl":"uz"},{"o":"寝室","sl":"ja","t":["yotoqxona ","спальня"],"tl":"uz"},{"o":"浴室","sl":"ja","t":["hammom "],"tl":"uz"},{"o":"お湯","sl":"ja","t":["issiq suv "],"tl":"uz"},{"o":"熱湯","sl":"ja","t":["кипяток"],"tl":"uz"},{"o":"再","sl":"ja","t":["повтор; второй раз"],"tl":"uz"},{"o":"作動","sl":"ja","t":["harakat"],"tl":"uz"},{"o":"起動","sl":"ja","t":["старт"],"tl":"uz"},{"o":"昼寝","sl":"ja","t":["дневной сон"],"tl":"uz"},{"o":"寝かす","sl":"ja","t":["uxlashga yot","子供を寝かす"],"tl":"uz"},{"o":"役目","sl":"ja","t":["rol "],"tl":"uz"},{"o":"水浴び","sl":"ja","t":["cho'milish"],"tl":"uz"},{"o":"冷水","sl":"ja","t":["sovuq suv "],"tl":"uz"},{"o":"海水","sl":"ja","t":["dengiz suvi"],"tl":"uz"},{"o":"海水浴","sl":"ja","t":["купание в море"],"tl":"uz"},{"o":"湯槽","sl":"ja","t":["ванна для купания"],"tl":"uz"},{"o":"食器","sl":"ja","t":["посуда; столовый прибор"],"tl":"uz"},{"o":"新発売","sl":"ja","t":["yangi nashr"],"tl":"uz"},{"o":"布団","sl":"ja","t":["постель"],"tl":"uz"},{"o":"干物","sl":"ja","t":["quritilgan"],"tl":"uz"},{"o":"調査する","sl":"ja","t":["tekshirmoq"],"tl":"uz"},{"o":"活発","sl":"ja","t":["faol "],"tl":"uz"},{"o":"洗面所","sl":"ja","t":["yuvinish xonasi"],"tl":"uz"},{"o":"シャツ","sl":"ja","t":["ko'ylak"],"tl":"uz"},{"o":"活気","sl":"ja","t":["оживление"],"tl":"uz"},{"o":"通学","sl":"ja","t":["maktabga borish "],"tl":"uz"},{"o":"海岸","sl":"ja","t":["qirg'oqqa"," морской берег"],"tl":"uz"},{"o":"拾得物","sl":"ja","t":["находка"],"tl":"uz"},{"o":"交番","sl":"ja","t":["полицейский пост"],"tl":"uz"},{"o":"退勤","sl":"ja","t":["Ishni tark etish"],"tl":"uz"},{"o":"無限","sl":"ja","t":["cheksiz "],"tl":"uz"},{"o":"攻撃","sl":"ja","t":["hujum"],"tl":"uz"},{"o":"ついてこい","sl":"ja","t":["orqamdan yuring; meni kuzating; menga obuna bo'ling"],"tl":"uz"},{"o":"係長","sl":"ja","t":["boshliq ","заведующий"],"tl":"uz"},{"o":"新たに","sl":"ja","t":["заново; вновь"],"tl":"uz"},{"o":"取り組む","sl":"ja","t":["иметь дело с чем-л.; работать над чем-л."],"tl":"uz"},{"o":"無くなる","sl":"ja","t":["g'oyib bo'lmoq"],"tl":"uz"},{"o":"以前","sl":"ja","t":["ilgari"],"tl":"uz"},{"o":"落ち葉","sl":"ja","t":["yiqilgan barglar"],"tl":"uz"},{"o":"燃料","sl":"ja","t":["yoqilg'i"],"tl":"uz"},{"o":"ストーブ","sl":"ja","t":["pechka"],"tl":"uz"},{"o":"ライバル","sl":"ja","t":["raqib"],"tl":"uz"},{"o":"手袋","sl":"ja","t":["qo'lqop "],"tl":"uz"},{"o":"式典","sl":"ja","t":["marosim"],"tl":"uz"},{"o":"情報","sl":"ja","t":["ma'lumot"],"tl":"uz"},{"o":"個人","sl":"ja","t":["individual"],"tl":"uz"},{"o":"ベル","sl":"ja","t":["qo'ng'iroq"],"tl":"uz"},{"o":"寮","sl":"ja","t":["yotoqxona"],"tl":"uz"},{"o":"体調","sl":"ja","t":["jismoniy holat"],"tl":"uz"},{"o":"天候","sl":"ja","t":["ob-havo"],"tl":"uz"},{"o":"出勤","sl":"ja","t":["ishga qatnashish"],"tl":"uz"},{"o":"移転","sl":"ja","t":["перемещение"],"tl":"uz"},{"o":"非常に","sl":"ja","t":["juda"],"tl":"uz"},{"o":"着いた","sl":"ja","t":["yetib keldi"],"tl":"uz"},{"o":"太陽","sl":"ja","t":["quyosh"],"tl":"uz"},{"o":"時報","sl":"ja","t":["vaqt signali "],"tl":"uz"},{"o":"突然","sl":"ja","t":["birdan"],"tl":"uz"},{"o":"渡す","sl":"ja","t":["berish; uzatish"],"tl":"uz"},{"o":"気がついた","sl":"ja","t":["men payqadim"],"tl":"uz"},{"o":"選挙","sl":"ja","t":["saylov"],"tl":"uz"},{"o":"協力","sl":"ja","t":["hamkorlik"],"tl":"uz"},{"o":"私語","sl":"ja","t":[" разговор шёпотом"],"tl":"uz"},{"o":"眠くなる","sl":"ja","t":["men uyqum borligini his qilyapman"],"tl":"uz"},{"o":"隊長","sl":"ja","t":["kapitan"],"tl":"uz"},{"o":"減少","sl":"ja","t":["kamaytirish"],"tl":"uz"},{"o":"技術","sl":"ja","t":["texnologiya"],"tl":"uz"},{"o":"進歩","sl":"ja","t":["taraqqiyot"],"tl":"uz"},{"o":"有り難い","sl":"ja","t":["rahmat"],"tl":"uz"},{"o":"遅い","sl":"ja","t":["sekin"],"tl":"uz"},{"o":"拝見","sl":"ja","t":["bir ko'ring"],"tl":"uz"},{"o":"期末","sl":"ja","t":["davr oxiri"],"tl":"uz"},{"o":"大抵","sl":"ja","t":["odatda"],"tl":"uz"},{"o":"結末","sl":"ja","t":["oxiri"],"tl":"uz"},{"o":"末","sl":"ja","t":["yakun"],"tl":"uz"},{"o":"昨晩","sl":"ja","t":["kecha tunda"],"tl":"uz"},{"o":"昨年","sl":"ja","t":["o'tkan yili"],"tl":"uz"},{"o":"翌朝","sl":"ja","t":["ertasi kuni ertalab"],"tl":"uz"},{"o":"翌日","sl":"ja","t":["ertasiga; ertangi kun"],"tl":"uz"},{"o":"昨夜","sl":"ja","t":["kecha tunda"],"tl":"uz"},{"o":"翌年","sl":"ja","t":["keyingi yil"],"tl":"uz"},{"o":"遅刻","sl":"ja","t":["kechikish"],"tl":"uz"},{"o":"桃","sl":"ja","t":["shaftoli"],"tl":"uz"},{"o":"誕生日","sl":"ja","t":["tug'ilgan kun"],"tl":"uz"},{"o":"娘","sl":"ja","t":["qizim"],"tl":"uz"},{"o":"祝日","sl":"ja","t":["bayram"],"tl":"uz"},{"o":"性格","sl":"ja","t":["характер"],"tl":"uz"},{"o":"荷物","sl":"ja","t":["bagaj"],"tl":"uz"},{"o":"一日","sl":"ja","t":["bir kun"],"tl":"uz"},{"o":"空いています","sl":"ja","t":["bo'sh"],"tl":"uz"},{"o":"七日","sl":"ja","t":["7-kun"],"tl":"uz"},{"o":"孫","sl":"ja","t":["nevara"],"tl":"uz"},{"o":"新学期","sl":"ja","t":["yangi semestr"],"tl":"uz"},{"o":"四日","sl":"ja","t":["4-kun"],"tl":"uz"},{"o":"一杯","sl":"ja","t":["bir stakan"],"tl":"uz"},{"o":"宿題","sl":"ja","t":["uy vazifasi"],"tl":"uz"},{"o":"間違い","sl":"ja","t":["xato"],"tl":"uz"},{"o":"夕食","sl":"ja","t":["kechki ovqat"],"tl":"uz"},{"o":"昼過ぎ","sl":"ja","t":["tushdan keyin"],"tl":"uz"},{"o":"網棚","sl":"ja","t":["багажная сетка, сетка для вещей "],"tl":"uz"},{"o":"屋根","sl":"ja","t":["tom"],"tl":"uz"},{"o":"財布","sl":"ja","t":["hamyon"],"tl":"uz"},{"o":"ハンカチ","sl":"ja","t":["ro'molcha"],"tl":"uz"},{"o":"本人","sl":"ja","t":["o'zi"],"tl":"uz"},{"o":"ボート","sl":"ja","t":["qayiq"],"tl":"uz"},{"o":"野球","sl":"ja","t":["beysbol"],"tl":"uz"},{"o":"症状","sl":"ja","t":["alomatlar"],"tl":"uz"},{"o":"定年","sl":"ja","t":["pensiya yoshi"],"tl":"uz"},{"o":"定か","sl":"ja","t":["ishonchi komil emas"],"tl":"uz"},{"o":"定める","sl":"ja","t":["shart qilish"],"tl":"uz"},{"o":"用いられている","sl":"ja","t":["foydalanilmoqda"],"tl":"uz"},{"o":"出世","sl":"ja","t":["rivojlanish"],"tl":"uz"},{"o":"予習","sl":"ja","t":["tayyorgarlik"],"tl":"uz"},{"o":"定まる","sl":"ja","t":["belgilangan"],"tl":"uz"},{"o":"定木","sl":"ja","t":["линейка"],"tl":"uz"},{"o":"一撃","sl":"ja","t":["zarba"],"tl":"uz"},{"o":"実家","sl":"ja","t":["ota-onalar uyi","родная семья"],"tl":"uz"},{"o":"のんびり","sl":"ja","t":["bemalol"],"tl":"uz"},{"o":"末っ子","sl":"ja","t":["eng kichik bola"],"tl":"uz"},{"o":"交差点","sl":"ja","t":["chorraha"],"tl":"uz"},{"o":"編みます","sl":"ja","t":["to'qimoq"],"tl":"uz"},{"o":"蓋","sl":"ja","t":["qopqoq"],"tl":"uz"},{"o":"さっぱり","sl":"ja","t":["освежающий • опрятный; "],"tl":"uz"},{"o":"自分勝手","sl":"ja","t":["xudbin"],"tl":"uz"},{"o":"勤める","sl":"ja","t":["xizmat qilish"],"tl":"uz"},{"o":"怒らせる","sl":"ja","t":["g'azablantirmoq"],"tl":"uz"},{"o":"呼びます","sl":"ja","t":["chaqirmoq"],"tl":"uz"},{"o":"押印","sl":"ja","t":["muhr"],"tl":"uz"},{"o":"腰","sl":"ja","t":["bel"],"tl":"uz"},{"o":"強引","sl":"ja","t":["majburiy"],"tl":"uz"},{"o":"ろうそく","sl":"ja","t":["sham"],"tl":"uz"},{"o":"消える","sl":"ja","t":["yo'qoladi","(sham) o'chmoq"],"tl":"uz"},{"o":"消防車","sl":"ja","t":["yong'in mashinasi"],"tl":"uz"},{"o":"手綱","sl":"ja","t":["jilov"],"tl":"uz"},{"o":"引火する","sl":"ja","t":["yondirmoq"],"tl":"uz"},{"o":"落とす","sl":"ja","t":["tushirish"],"tl":"uz"},{"o":"消化","sl":"ja","t":["ovqat hazm qilish"],"tl":"uz"},{"o":"責任","sl":"ja","t":["mas'uliyat"],"tl":"uz"},{"o":"戸外","sl":"ja","t":["ochiq havoda"," вне дома"],"tl":"uz"},{"o":"門戸","sl":"ja","t":["двери"],"tl":"uz"},{"o":"窓","sl":"ja","t":["oyna"],"tl":"uz"},{"o":"空気","sl":"ja","t":["havo"],"tl":"uz"},{"o":"意欲","sl":"ja","t":["iroda"],"tl":"uz"},{"o":"車窓","sl":"ja","t":["avtomobil oynasi "],"tl":"uz"},{"o":"眺め","sl":"ja","t":["вид (из окна и т.п.)"],"tl":"uz"},{"o":"売場","sl":"ja","t":["savdo maydonchasi"],"tl":"uz"},{"o":"石段","sl":"ja","t":["каменная ступень • каменная лестница"],"tl":"uz"},{"o":"達成","sl":"ja","t":["yutuq"],"tl":"uz"},{"o":"手段","sl":"ja","t":["vosita, usul, yo‘l"],"tl":"uz"},{"o":"井戸水","sl":"ja","t":["quduq suvi"],"tl":"uz"},{"o":"一戸建","sl":"ja","t":["alohida uy"],"tl":"uz"},{"o":"同窓会","sl":"ja","t":["bitiruvchilar uchrashuvi"],"tl":"uz"},{"o":"黄色","sl":"ja","t":["sariq"],"tl":"uz"},{"o":"実現","sl":"ja","t":["amalga oshirish"],"tl":"uz"},{"o":"根元","sl":"ja","t":["ildiz"],"tl":"uz"},{"o":"植木","sl":"ja","t":["o'simliklar"],"tl":"uz"},{"o":"紅葉","sl":"ja","t":["kuzgi barglar"],"tl":"uz"},{"o":"結ぶ","sl":"ja","t":["bog'lash"],"tl":"uz"},{"o":"実力","sl":"ja","t":["haqiqiy qobiliyat"],"tl":"uz"},{"o":"試す","sl":"ja","t":["sinab ko'rish"],"tl":"uz"},{"o":"根本","sl":"ja","t":["ildiz"],"tl":"uz"},{"o":"笑顔","sl":"ja","t":["tabassum"],"tl":"uz"},{"o":"素直に","sl":"ja","t":["rostini aytsam"],"tl":"uz"},{"o":"笑う","sl":"ja","t":["tabassum"],"tl":"uz"},{"o":"常用","sl":"ja","t":["doimiy foydalaniladi"],"tl":"uz"},{"o":"減らす","sl":"ja","t":["kamaytirish"],"tl":"uz"},{"o":"機器","sl":"ja","t":["qurilma"],"tl":"uz"},{"o":"成績","sl":"ja","t":["результат"],"tl":"uz"},{"o":"生徒","sl":"ja","t":["o'quvchi"],"tl":"uz"},{"o":"倒す","sl":"ja","t":["sindirish; qulatish; pastga tushirish"],"tl":"uz"},{"o":"建つ","sl":"ja","t":["turish"],"tl":"uz"},{"o":"建立","sl":"ja","t":["barpo etmoq, tashkil etmoq"],"tl":"uz"},{"o":"堤防","sl":"ja","t":["to‘g‘on, damba","堤防を築く"],"tl":"uz"},{"o":"改築","sl":"ja","t":["ta'mirlash","古いアパートを改築する"],"tl":"uz"},{"o":"一等地","sl":"ja","t":["asosiy joylashuvi"],"tl":"uz"},{"o":"移植","sl":"ja","t":["transplantatsiya","пересадка"],"tl":"uz"},{"o":"構造","sl":"ja","t":["tuzilishi"],"tl":"uz"},{"o":"木造","sl":"ja","t":["yog'och"],"tl":"uz"},{"o":"造花","sl":"ja","t":["sun'iy gullar "],"tl":"uz"},{"o":"一級","sl":"ja","t":["birinchi sinf"],"tl":"uz"},{"o":"建築","sl":"ja","t":["arxitektura"],"tl":"uz"},{"o":"目指する","sl":"ja","t":["maqsad","стремиться (к чему-л.)"],"tl":"uz"},{"o":"番組","sl":"ja","t":["dastur"],"tl":"uz"},{"o":"構成","sl":"ja","t":["kompozitsiya","состав; структура"],"tl":"uz"},{"o":"構内","sl":"ja","t":["kampusda","территория"],"tl":"uz"},{"o":"構わない","sl":"ja","t":["menga baribir","всё равно"],"tl":"uz"},{"o":"橋","sl":"ja","t":["ko'prik"],"tl":"uz"},{"o":"建造物","sl":"ja","t":["bino"],"tl":"uz"},{"o":"造船","sl":"ja","t":["kemasozlik"],"tl":"uz"},{"o":"会場","sl":"ja","t":["зал собраний"],"tl":"uz"},{"o":"結論","sl":"ja","t":["xulosa"],"tl":"uz"},{"o":"理解","sl":"ja","t":["tushunmoq"],"tl":"uz"},{"o":"入場","sl":"ja","t":["kirish"],"tl":"uz"},{"o":"独立","sl":"ja","t":["mustaqillik"],"tl":"uz"},{"o":"営業","sl":"ja","t":["бизнес"],"tl":"uz"},{"o":"書類","sl":"ja","t":["hujjat"],"tl":"uz"},{"o":"資料","sl":"ja","t":["materiallar"],"tl":"uz"},{"o":"会長","sl":"ja","t":["rais"],"tl":"uz"},{"o":"姿","sl":"ja","t":["фигура, облик, вид,"],"tl":"uz"},{"o":"設ける","sl":"ja","t":["o'rnatish","Tashkil etmoq"],"tl":"uz"},{"o":"設定","sl":"ja","t":["sozlash"],"tl":"uz"},{"o":"支える","sl":"ja","t":["qo'llab-quvvatlash"],"tl":"uz"},{"o":"電柱","sl":"ja","t":["электрический столб"],"tl":"uz"},{"o":"ぶつかった","sl":"ja","t":["to'qnashdi"],"tl":"uz"},{"o":"金庫","sl":"ja","t":["сейф"],"tl":"uz"},{"o":"通り","sl":"ja","t":["ko'cha"],"tl":"uz"},{"o":"向こう","sl":"ja","t":["та сторона; противоположная сторона"],"tl":"uz"},{"o":"向かう","sl":"ja","t":["tomon ketmoqda"],"tl":"uz"},{"o":"進行","sl":"ja","t":["движение вперёд"],"tl":"uz"},{"o":"方向","sl":"ja","t":["yo'nalish"],"tl":"uz"},{"o":"設計","sl":"ja","t":["dizayn"],"tl":"uz"},{"o":"設立","sl":"ja","t":["tashkil etilgan"],"tl":"uz"},{"o":"建設","sl":"ja","t":["qurilish"],"tl":"uz"},{"o":"大黒柱","sl":"ja","t":["tayanch"],"tl":"uz"},{"o":"車庫","sl":"ja","t":["garaj"],"tl":"uz"},{"o":"向上心","sl":"ja","t":["ambitsiya","стремление"],"tl":"uz"},{"o":"非常","sl":"ja","t":["judayam"],"tl":"uz"},{"o":"状況","sl":"ja","t":["vaziyat"],"tl":"uz"},{"o":"防ぐ","sl":"ja","t":["oldini olish"],"tl":"uz"},{"o":"ひらひら","sl":"ja","t":["tebranish","порхая"],"tl":"uz"},{"o":"具体的","sl":"ja","t":["конкретный"],"tl":"uz"},{"o":"葡萄","sl":"ja","t":["uzum"],"tl":"uz"},{"o":"柘榴","sl":"ja","t":["anor"],"tl":"uz"},{"o":"公共交通機関","sl":"ja","t":["jamoat transporti"],"tl":"uz"},{"o":"パトカー","sl":"ja","t":["politsiya mashinasi"],"tl":"uz"},{"o":"緊急車両","sl":"ja","t":["tez yordam mashinasi"],"tl":"uz"},{"o":"麺類","sl":"ja","t":["вермишель"],"tl":"uz"},{"o":"虎","sl":"ja","t":["yo'lbars"],"tl":"uz"},{"o":"狼","sl":"ja","t":["bo'ri"],"tl":"uz"},{"o":"うさぎ","sl":"ja","t":["quyon"],"tl":"uz"},{"o":"草食","sl":"ja","t":["o'txo'r"],"tl":"uz"},{"o":"羊","sl":"ja","t":["qo'y"],"tl":"uz"},{"o":"感情","sl":"ja","t":["hissiyotlar"],"tl":"uz"},{"o":"環境汚染","sl":"ja","t":["atrof-muhitning ifloslanishi"],"tl":"uz"},{"o":"果物","sl":"ja","t":["meva"],"tl":"uz"},{"o":"服装","sl":"ja","t":["kiyim"],"tl":"uz"},{"o":"計画","sl":"ja","t":["reja"],"tl":"uz"},{"o":"選手","sl":"ja","t":["игрок"],"tl":"uz"},{"o":"転ぶ","sl":"ja","t":["yiqilish"],"tl":"uz"},{"o":"増やす","sl":"ja","t":["kattalashtirish; ko'paytirish"],"tl":"uz"},{"o":"長期","sl":"ja","t":["uzoq muddatli"],"tl":"uz"},{"o":"交渉","sl":"ja","t":["muzokaralar"],"tl":"uz"},{"o":"合意","sl":"ja","t":["kelishuv"],"tl":"uz"},{"o":"正確","sl":"ja","t":["aniq"],"tl":"uz"},{"o":"発達","sl":"ja","t":["rivojlanish"],"tl":"uz"},{"o":"程度","sl":"ja","t":["daraja"],"tl":"uz"},{"o":"固く","sl":"ja","t":["qat'iy"],"tl":"uz"},{"o":"ただ","sl":"ja","t":["shunchaki"],"tl":"uz"},{"o":"丸く","sl":"ja","t":["dumaloq"],"tl":"uz"},{"o":"酷い","sl":"ja","t":["dahshatli "],"tl":"uz"},{"o":"修理する","sl":"ja","t":["ta'mirlash"],"tl":"uz"},{"o":"三角形","sl":"ja","t":["uchburchak"],"tl":"uz"},{"o":"ずっと","sl":"ja","t":[" всё время"],"tl":"uz"},{"o":"少佐","sl":"ja","t":["mayor"],"tl":"uz"},{"o":"入浴","sl":"ja","t":["cho'milish"],"tl":"uz"},{"o":"引用","sl":"ja","t":["iqtibos"],"tl":"uz"},{"o":"探す","sl":"ja","t":["qidiruv"],"tl":"uz"},{"o":"大型","sl":"ja","t":["katta"],"tl":"uz"},{"o":"保管","sl":"ja","t":["saqlash"],"tl":"uz"},{"o":"集団主義","sl":"ja","t":["kollektivizm"],"tl":"uz"},{"o":"稲作","sl":"ja","t":["sholi yetishtirish"],"tl":"uz"},{"o":"重要な","sl":"ja","t":["muhim"],"tl":"uz"},{"o":"基準","sl":"ja","t":["standart"],"tl":"uz"},{"o":"原因","sl":"ja","t":["sabab"],"tl":"uz"},{"o":"田植え","sl":"ja","t":["sholi ekish"],"tl":"uz"},{"o":"収穫","sl":"ja","t":["o'rim-yig'im"],"tl":"uz"},{"o":"作業","sl":"ja","t":["ish"],"tl":"uz"},{"o":"稲","sl":"ja","t":["guruch"],"tl":"uz"},{"o":"使用方法","sl":"ja","t":["qanday foydalanish kerak"],"tl":"uz"},{"o":"ハンドル","sl":"ja","t":["tutqich"],"tl":"uz"},{"o":"可能","sl":"ja","t":["возможность"],"tl":"uz"},{"o":"故障","sl":"ja","t":["sindirish","buzilish"],"tl":"uz"},{"o":"分解","sl":"ja","t":["demontaj"],"tl":"uz"},{"o":"濡す","sl":"ja","t":["делать мокрым"],"tl":"uz"},{"o":"建築家","sl":"ja","t":["arxitektor"],"tl":"uz"},{"o":"競争","sl":"ja","t":["raqobat"],"tl":"uz"},{"o":"手動","sl":"ja","t":["qo'llanma"],"tl":"uz"},{"o":"自動","sl":"ja","t":["avtomatik　（自動販売機）"],"tl":"uz"},{"o":"自動運転","sl":"ja","t":["атоматическое управление"],"tl":"uz"},{"o":"防水","sl":"ja","t":["suv o'tkazmaydigan; suvga chidamli"],"tl":"uz"},{"o":"資本主義","sl":"ja","t":["kapitalizm"],"tl":"uz"},{"o":"社会主義","sl":"ja","t":["sotsializm"],"tl":"uz"},{"o":"観光客","sl":"ja","t":["turist"],"tl":"uz"},{"o":"現地","sl":"ja","t":["mahalliy"],"tl":"uz"},{"o":"語る","sl":"ja","t":["gapirmoq"],"tl":"uz"},{"o":"判断","sl":"ja","t":["hukm"],"tl":"uz"},{"o":"断り","sl":"ja","t":["rad etish"],"tl":"uz"},{"o":"文房具","sl":"ja","t":["ish yuritish buyumlari"],"tl":"uz"},{"o":"両手","sl":"ja","t":["ikkala qo'l"],"tl":"uz"},{"o":"家事","sl":"ja","t":["uy ishlari"],"tl":"uz"},{"o":"全科目","sl":"ja","t":["Barcha fanlar"],"tl":"uz"},{"o":"在日","sl":"ja","t":["yaponiyada yashash"],"tl":"uz"},{"o":"期間","sl":"ja","t":["davr"],"tl":"uz"},{"o":"保護","sl":"ja","t":["himoya"],"tl":"uz"},{"o":"親子","sl":"ja","t":["ota-ona va bola"],"tl":"uz"},{"o":"高齢者","sl":"ja","t":["keksa fuqaro"],"tl":"uz"},{"o":"施設","sl":"ja","t":["ob'ekt"],"tl":"uz"},{"o":"現状","sl":"ja","t":["hozirgi holat"],"tl":"uz"},{"o":"森林造","sl":"ja","t":["o'rmon tuzilishi"],"tl":"uz"},{"o":"服用","sl":"ja","t":["принимать (лекарство)"],"tl":"uz"},{"o":"やけど","sl":"ja","t":["kuyish"],"tl":"uz"},{"o":"高熱","sl":"ja","t":["yuqori isitma"],"tl":"uz"},{"o":"寒さ","sl":"ja","t":["sovuq"],"tl":"uz"},{"o":"冷える","sl":"ja","t":["становиться холоднее"],"tl":"uz"},{"o":"冷やす","sl":"ja","t":["охлаждать, остужать"],"tl":"uz"},{"o":"冷たい","sl":"ja","t":["sovuq"],"tl":"uz"},{"o":"冷めて","sl":"ja","t":["остывать, охладеть"],"tl":"uz"},{"o":"温まる","sl":"ja","t":["isitadi"],"tl":"uz"},{"o":"温度","sl":"ja","t":["harorat"],"tl":"uz"},{"o":"度","sl":"ja","t":["раз (bu safar)"],"tl":"uz"},{"o":"罰金","sl":"ja","t":["штраф"],"tl":"uz"},{"o":"以降","sl":"ja","t":["keyin"],"tl":"uz"},{"o":"申し訳ない","sl":"ja","t":["uzr so'rayman"],"tl":"uz"},{"o":"送信","sl":"ja","t":["yuboring"],"tl":"uz"},{"o":"延期","sl":"ja","t":["kechiktirildi"],"tl":"uz"},{"o":"賞金","sl":"ja","t":["pul mukofoti"],"tl":"uz"},{"o":"欲しい","sl":"ja","t":["istayman"],"tl":"uz"},{"o":"親戚","sl":"ja","t":["qarindoshlar"],"tl":"uz"},{"o":"賢い","sl":"ja","t":["dono"],"tl":"uz"},{"o":"継続力","sl":"ja","t":["Davom etish kuchi"],"tl":"uz"},{"o":"新婚","sl":"ja","t":["yangi turmush qurgan"],"tl":"uz"},{"o":"冷やかす","sl":"ja","t":["kulmoq"],"tl":"uz"},{"o":"電子","sl":"ja","t":["elektron"],"tl":"uz"},{"o":"経費","sl":"ja","t":["расходы"],"tl":"uz"},{"o":"負担","sl":"ja","t":["yuk"],"tl":"uz"},{"o":"体温計","sl":"ja","t":["termometr"],"tl":"uz"},{"o":"朝食","sl":"ja","t":["nonushta"],"tl":"uz"},{"o":"支度","sl":"ja","t":["tayyorgarlik, hozirlik"],"tl":"uz"},{"o":"揃える","sl":"ja","t":["tartibga solish"],"tl":"uz"},{"o":"揃える","sl":"ja","t":["tartibga solish"],"tl":"uz"},{"o":"木材","sl":"ja","t":["yog'och"],"tl":"uz"},{"o":"鼻水","sl":"ja","t":["burun oqishi"],"tl":"uz"},{"o":"典型的","sl":"ja","t":["tipik","oddiy odatiy"],"tl":"uz"},{"o":"模型","sl":"ja","t":["model"],"tl":"uz"},{"o":"飾る","sl":"ja","t":["bezatish"],"tl":"uz"},{"o":"延焼","sl":"ja","t":["yong'in tarqalishi"],"tl":"uz"},{"o":"日焼け","sl":"ja","t":["загар"],"tl":"uz"},{"o":"半額","sl":"ja","t":["yarim"],"tl":"uz"},{"o":"会員","sl":"ja","t":["a'zo"],"tl":"uz"},{"o":"許可","sl":"ja","t":["ruxsat"],"tl":"uz"},{"o":"措置","sl":"ja","t":["chora-tadbirlar"],"tl":"uz"},{"o":"暦","sl":"ja","t":["kalendar"],"tl":"uz"},{"o":"素材","sl":"ja","t":["material"],"tl":"uz"},{"o":"材料","sl":"ja","t":["material"],"tl":"uz"},{"o":"優れた","sl":"ja","t":["ajoyib"],"tl":"uz"},{"o":"人材","sl":"ja","t":["kadrlar bo'limi"],"tl":"uz"},{"o":"人気者","sl":"ja","t":["mashhur odam"],"tl":"uz"},{"o":"容器","sl":"ja","t":["konteyner"],"tl":"uz"},{"o":"手先","sl":"ja","t":["пальцы"],"tl":"uz"},{"o":"器用な","sl":"ja","t":["epchil"],"tl":"uz"},{"o":"塩","sl":"ja","t":["tuz"],"tl":"uz"},{"o":"調理","sl":"ja","t":["pishirish"],"tl":"uz"},{"o":"焦がす","sl":"ja","t":["kuydirmoq"],"tl":"uz"},{"o":"炒める","sl":"ja","t":["qizigan yog'da qovurish"],"tl":"uz"},{"o":"卵白","sl":"ja","t":["tuxum oqi"],"tl":"uz"},{"o":"山羊","sl":"ja","t":["echki"],"tl":"uz"},{"o":"永久歯","sl":"ja","t":["doimiy tishlar"],"tl":"uz"},{"o":"乳歯","sl":"ja","t":["sut tishlari"],"tl":"uz"},{"o":"小麦粉","sl":"ja","t":["bug‘doydan tayyorlangan un"],"tl":"uz"},{"o":"粉末","sl":"ja","t":["kukun"],"tl":"uz"},{"o":"種類","sl":"ja","t":["turlari"],"tl":"uz"},{"o":"粉薬","sl":"ja","t":["dori kukuni "],"tl":"uz"},{"o":"塩味","sl":"ja","t":["tuzli"],"tl":"uz"},{"o":"持参する","sl":"ja","t":["приносить с собой"],"tl":"uz"},{"o":"甥","sl":"ja","t":["jiyan"],"tl":"uz"},{"o":"ひとつまみ","sl":"ja","t":["bir chimdim"],"tl":"uz"},{"o":"浄水器","sl":"ja","t":["suv tozalash vositasi"],"tl":"uz"},{"o":"浄水","sl":"ja","t":["tozalangan suv"],"tl":"uz"},{"o":"塩素","sl":"ja","t":["xlor"],"tl":"uz"},{"o":"ゆで","sl":"ja","t":["qaynatilgan"],"tl":"uz"},{"o":"黄身","sl":"ja","t":["желток (яйца)"],"tl":"uz"},{"o":"うみがめ","sl":"ja","t":["dengiz toshbaqasi"],"tl":"uz"},{"o":"お玉","sl":"ja","t":["cho‘mich"],"tl":"uz"},{"o":"海辺","sl":"ja","t":["dengiz bo'yi"],"tl":"uz"},{"o":"保証","sl":"ja","t":["kafolat"],"tl":"uz"},{"o":"乳飲み子","sl":"ja","t":["chaqaloq (hali sut ichadigan go‘dak)"],"tl":"uz"},{"o":"解決","sl":"ja","t":["muammoni hal qilish, yechish"],"tl":"uz"},{"o":"羽","sl":"ja","t":["qanotdagi patlar"],"tl":"uz"},{"o":"薄い","sl":"ja","t":["yupqa"],"tl":"uz"},{"o":"捕まえる","sl":"ja","t":["tutmoq"],"tl":"uz"},{"o":"工業化","sl":"ja","t":["sanoatlashtirish"],"tl":"uz"},{"o":"暮らす","sl":"ja","t":["yashash"],"tl":"uz"},{"o":"終に","sl":"ja","t":["nihoyat"],"tl":"uz"},{"o":"絶滅","sl":"ja","t":["yo'q bo'lib ketish"],"tl":"uz"},{"o":"輸入する","sl":"ja","t":["import"],"tl":"uz"},{"o":"復活","sl":"ja","t":["jonlanish"],"tl":"uz"},{"o":"再び","sl":"ja","t":["yana"],"tl":"uz"}]}</script>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ============ Constants ============ */
+const LS = { decks:'nihongo_decks_v1', known:'nihongo_known_v1', api:'nihongo_api_v1' };
+const JLPT_LEVELS = ['N5','N4','N3','N2','N1'];
+const JLPT_COLORS = {
+  N5:{c:'#4F7A3D',bg:'rgba(79,122,61,.15)'},
+  N4:{c:'#3D6F7A',bg:'rgba(61,111,122,.15)'},
+  N3:{c:'#C97A40',bg:'rgba(201,122,64,.15)'},
+  N2:{c:'#6B4A8C',bg:'rgba(107,74,140,.15)'},
+  N1:{c:'#B24A3D',bg:'rgba(178,74,61,.15)'},
+};
+const DECK_GRADIENTS = [
+  'linear-gradient(135deg,#C97A40,#E0995A)',
+  'linear-gradient(135deg,#3F4C8C,#6173b8)',
+  'linear-gradient(135deg,#6B4A8C,#9266b8)',
+  'linear-gradient(135deg,#4F7A3D,#6fa356)',
+  'linear-gradient(135deg,#B24A3D,#d06a5a)',
+  'linear-gradient(135deg,#3D6F7A,#56a0ad)',
+  'linear-gradient(135deg,#8C6B3F,#b8945a)',
+];
+const FLASH_GRADS = DECK_GRADIENTS;
+const QUIZ_GRADS = [
+  'linear-gradient(135deg,#C97A40,#E0995A)',
+  'linear-gradient(135deg,#3F4C8C,#6173b8)',
+  'linear-gradient(135deg,#6B4A8C,#9266b8)',
+];
+const EMOJIS = ['📚','🌅','🗻','🍣','🌸','⛩️','🎌','🍵','📖','🎴','🐉','🌊','🦊','🏯','✏️','🧧','🎋','🪷','🍙','🎐'];
+const FLASH_SIZE = 5;
+const QUIZ_SIZE = 11;
+const DEFAULT_ANTHROPIC_MODEL = 'claude-3-5-haiku-20241022';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = DEFAULT_ANTHROPIC_MODEL; // back-compat
+const DEFAULT_SETTINGS = {
+  provider:'gemini',                        // 'gemini' (bepul) | 'anthropic' (pullik)
+  geminiKey:'',    geminiModel: DEFAULT_GEMINI_MODEL,
+  anthropicKey:'', anthropicModel: DEFAULT_ANTHROPIC_MODEL
+};
+// Migrate old {key,model} format and fill any missing fields
+function normalizeSettings(s){
+  s = s || {};
+  if(s.provider) return {...DEFAULT_SETTINGS, ...s};
+  if(s.key!==undefined || s.model!==undefined){ // legacy anthropic-only
+    return {...DEFAULT_SETTINGS, provider:'anthropic', anthropicKey:s.key||'', anthropicModel:s.model||DEFAULT_ANTHROPIC_MODEL};
+  }
+  return {...DEFAULT_SETTINGS};
+}
+function hasKey(settings){ return settings.provider==='gemini' ? !!settings.geminiKey : !!settings.anthropicKey; }
+function providerLabel(settings){ return settings.provider==='gemini' ? 'Gemini' : 'Claude'; }
+
+/* ============ Helpers ============ */
+let _idc = 0;
+const uid = () => 'c' + Date.now().toString(36) + (_idc++).toString(36) + Math.floor(Math.random()*1e4).toString(36);
+const chunk = (arr, n) => { const o=[]; for(let i=0;i<arr.length;i+=n) o.push(arr.slice(i,i+n)); return o; };
+const shuffle = (arr) => { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+function loadDecks(){
+  try{
+    const raw = localStorage.getItem(LS.decks);
+    if(raw){ const d = JSON.parse(raw); if(Array.isArray(d) && d.length) return d; }
+  }catch(e){}
+  return [ buildSeedDeck() ];
+}
+function buildSeedDeck(){
+  let seed = { name:'Basic 0', cards:[] };
+  try{
+    const raw = JSON.parse(document.getElementById('seed-data').textContent);
+    const cards = (raw.cards||[]).map(c => ({
+      id: uid(),
+      kanji: (c.o||'').trim(),
+      hiragana: '',
+      uzbek: (Array.isArray(c.t)? c.t : [c.t]).map(x=>String(x||'').trim()).filter(Boolean).join(', '),
+      jlpt: '',
+      sentence: '',
+      sentenceUz: ''
+    })).filter(c => c.kanji);
+    seed = { name: raw.name || 'Basic 0', cards };
+  }catch(e){ console.warn('seed parse failed', e); }
+  const pretty = (seed.name||'Basic 0').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  return { id: uid(), name: pretty, emoji:'📚', cards: seed.cards };
+}
+
+/* ============ Storage hook ============ */
+function useLocalState(key, initial){
+  const [val, setVal] = useState(()=>{
+    try{ const r = localStorage.getItem(key); return r!=null ? JSON.parse(r) : initial; }catch(e){ return initial; }
+  });
+  useEffect(()=>{ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }, [key, val]);
+  return [val, setVal];
+}
+
+/* ============ AI (Claude / Gemini) ============ */
+function aiPrompt(term){
+  return `You are a Japanese vocabulary assistant for an Uzbek learner.
+The user gives a term that is either a Japanese word (kanji/kana) or an Uzbek word.
+Term: "${term}"
+
+Return ONLY one strict JSON object (no markdown, no commentary) with EXACTLY these keys:
+{"kanji":"<the Japanese word as normally written>","hiragana":"<reading in hiragana only>","uzbek":"<short Uzbek meaning in latin script>","jlpt":"<one of N5,N4,N3,N2,N1>","sentence":"<one natural example sentence in Japanese that uses the word>","sentenceUz":"<Uzbek translation of that sentence>"}
+
+Rules: hiragana must be kana only. jlpt is your best estimate. Keep uzbek concise. Output valid JSON only.`;
+}
+function parseAi(text, term){
+  let obj;
+  try{ obj = JSON.parse(text); }
+  catch(e){
+    const m = (text||'').match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('AI javobini o\'qib bo\'lmadi: ' + (text||'').slice(0,160));
+    obj = JSON.parse(m[0]);
+  }
+  return {
+    kanji:(obj.kanji||term).trim(),
+    hiragana:(obj.hiragana||'').trim(),
+    uzbek:(obj.uzbek||'').trim(),
+    jlpt: JLPT_LEVELS.includes((obj.jlpt||'').toUpperCase().trim()) ? obj.jlpt.toUpperCase().trim() : '',
+    sentence:(obj.sentence||'').trim(),
+    sentenceUz:(obj.sentenceUz||'').trim()
+  };
+}
+function keyHint(status){
+  if(status===401 || status===403) return ' — API kalit noto\'g\'ri yoki ruxsat yo\'q. ⚙️ Sozlamalardan kalitni tekshiring.';
+  if(status===400) return ' — so\'rov yoki kalit noto\'g\'ri bo\'lishi mumkin.';
+  if(status===429) return ' — limit tugadi, biroz kutib qayta urining.';
+  return '';
+}
+
+async function callClaude(term, apiKey, model){
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({ model: model || DEFAULT_ANTHROPIC_MODEL, max_tokens: 600, messages:[{ role:'user', content: aiPrompt(term) }] })
+  });
+  if(!res.ok){
+    let detail=''; try{ const e = await res.json(); detail = e.error?.message || JSON.stringify(e); }catch(_){ detail = await res.text(); }
+    throw new Error('Claude API ('+res.status+'): ' + detail + keyHint(res.status));
+  }
+  const data = await res.json();
+  const text = (data.content||[]).map(b=>b.text||'').join('').trim();
+  return parseAi(text, term);
+}
+
+async function callGemini(term, apiKey, model){
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + (model||DEFAULT_GEMINI_MODEL) + ':generateContent?key=' + encodeURIComponent(apiKey);
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body: JSON.stringify({
+      contents:[{ role:'user', parts:[{ text: aiPrompt(term) }] }],
+      generationConfig:{ temperature:0.4, responseMimeType:'application/json' }
+    })
+  });
+  if(!res.ok){
+    let detail=''; try{ const e = await res.json(); detail = e.error?.message || JSON.stringify(e); }catch(_){ detail = await res.text(); }
+    throw new Error('Gemini API ('+res.status+'): ' + detail + keyHint(res.status));
+  }
+  const data = await res.json();
+  if(data.promptFeedback && data.promptFeedback.blockReason) throw new Error('Gemini so\'rovni rad etdi: ' + data.promptFeedback.blockReason);
+  const text = ((data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim();
+  if(!text) throw new Error('Gemini bo\'sh javob qaytardi. Qayta urining.');
+  return parseAi(text, term);
+}
+
+async function callAI(term, settings){
+  if(settings.provider==='gemini'){
+    if(!settings.geminiKey) throw new Error('Gemini API kaliti kiritilmagan (⚙️ Sozlamalar).');
+    return callGemini(term, settings.geminiKey, settings.geminiModel);
+  }
+  if(!settings.anthropicKey) throw new Error('Anthropic API kaliti kiritilmagan (⚙️ Sozlamalar).');
+  return callClaude(term, settings.anthropicKey, settings.anthropicModel);
+}
+
+/* ============ Small UI ============ */
+function JlptTag({level}){
+  if(!level) return null;
+  const c = JLPT_COLORS[level] || JLPT_COLORS.N3;
+  return <span className="jlpt-badge" style={{color:c.c,background:c.bg,border:'1px solid '+c.c+'55'}}>{level}</span>;
+}
+
+function Modal({title, sub, onClose, children}){
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div>
+            <h3>{title}</h3>
+            {sub && <div className="msub">{sub}</div>}
+          </div>
+          <button className="iconbtn ghost" onClick={onClose}>✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ============ Word form (add/edit) ============ */
+function WordForm({initial, onSave, onCancel, settings}){
+  const [f, setF] = useState(initial || {kanji:'',hiragana:'',uzbek:'',jlpt:'',sentence:'',sentenceUz:''});
+  const [enriching, setEnriching] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k,v)=> setF(p=>({...p,[k]:v}));
+
+  async function enrich(){
+    if(!hasKey(settings)){ setErr('Avval ⚙️ Sozlamalardan AI kalitini kiriting ('+providerLabel(settings)+').'); return; }
+    if(!f.kanji.trim()){ setErr('Avval so\'zni (kanji) kiriting.'); return; }
+    setErr(''); setEnriching(true);
+    try{
+      const r = await callAI(f.kanji.trim(), settings);
+      setF(p=>({
+        kanji: p.kanji || r.kanji,
+        hiragana: p.hiragana || r.hiragana,
+        uzbek: p.uzbek || r.uzbek,
+        jlpt: p.jlpt || r.jlpt,
+        sentence: p.sentence || r.sentence,
+        sentenceUz: p.sentenceUz || r.sentenceUz
+      }));
+    }catch(e){ setErr(e.message); }
+    setEnriching(false);
+  }
+
+  return (
+    <div>
+      {err && <div className="err">{err}</div>}
+      <div className="field">
+        <label>So'z (kanji / kana) *</label>
+        <input className="jp" value={f.kanji} onChange={e=>set('kanji',e.target.value)} placeholder="例: 成功" />
+      </div>
+      <button className="btn dark sm" style={{width:'100%',marginBottom:13}} onClick={enrich} disabled={enriching}>
+        {enriching ? <><span className="spinner"></span> AI to'ldirmoqda...</> : '🤖 AI bilan to\'ldirish (o\'qilishi, daraja, gap)'}
+      </button>
+      <div className="field">
+        <label>O'qilishi (hiragana)</label>
+        <input className="jp" value={f.hiragana} onChange={e=>set('hiragana',e.target.value)} placeholder="せいこう" />
+      </div>
+      <div className="field">
+        <label>Tarjima (uzbek) *</label>
+        <input value={f.uzbek} onChange={e=>set('uzbek',e.target.value)} placeholder="muvaffaqiyat" />
+      </div>
+      <div className="field">
+        <label>JLPT daraja</label>
+        <select value={f.jlpt} onChange={e=>set('jlpt',e.target.value)}>
+          <option value="">— belgilanmagan —</option>
+          {JLPT_LEVELS.map(l=><option key={l} value={l}>{l}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label>Misol gap (yapon)</label>
+        <textarea className="jp" value={f.sentence} onChange={e=>set('sentence',e.target.value)} placeholder="例文..." />
+      </div>
+      <div className="field">
+        <label>Gap tarjimasi (uzbek)</label>
+        <textarea value={f.sentenceUz} onChange={e=>set('sentenceUz',e.target.value)} />
+      </div>
+      <div className="row" style={{marginTop:8}}>
+        <button className="btn" onClick={onCancel}>Bekor qilish</button>
+        <button className="btn primary" onClick={()=>{
+          if(!f.kanji.trim() || !f.uzbek.trim()){ setErr('So\'z va tarjima majburiy.'); return; }
+          onSave({...f, kanji:f.kanji.trim(), uzbek:f.uzbek.trim()});
+        }}>Saqlash</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============ AI add modal ============ */
+function AiAddModal({settings, onAdd, onClose, onNeedKey}){
+  const [term, setTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [preview, setPreview] = useState(null);
+  const ready = hasKey(settings);
+
+  async function generate(){
+    if(!ready){ onNeedKey(); return; }
+    if(!term.trim()) return;
+    setErr(''); setLoading(true); setPreview(null);
+    try{
+      const r = await callAI(term.trim(), settings);
+      setPreview(r);
+    }catch(e){ setErr(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <Modal title="🤖 AI bilan so'z qo'shish" sub={'So\'z yozing — '+providerLabel(settings)+' tarjima, o\'qilishi, JLPT daraja va misol gapni o\'zi to\'ldiradi.'} onClose={onClose}>
+      {!ready && <div className="note">⚠️ AI kaliti kiritilmagan. Generatsiya uchun ⚙️ Sozlamalardan kalitni kiriting. <b>Gemini bepul</b> variant ham bor.</div>}
+      {err && <div className="err">{err}</div>}
+      <div className="field" style={{marginTop:12}}>
+        <label>So'z (yaponcha yoki o'zbekcha)</label>
+        <input className="jp" value={term} autoFocus onChange={e=>setTerm(e.target.value)}
+               onKeyDown={e=>{if(e.key==='Enter')generate();}} placeholder="例: 努力  yoki  'sabr'" />
+      </div>
+      <button className="btn primary" onClick={generate} disabled={loading}>
+        {loading ? <><span className="spinner"></span> Yaratilmoqda...</> : '✨ Yaratish'}
+      </button>
+
+      {preview && (
+        <>
+          <div className="ai-preview pop">
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span className="pk">{preview.kanji}</span>
+              {preview.jlpt && <JlptTag level={preview.jlpt} />}
+            </div>
+            <div className="pr">{preview.hiragana}</div>
+            <div className="pm">{preview.uzbek}</div>
+            {preview.sentence && <div className="psent">{preview.sentence}<span className="uz">{preview.sentenceUz}</span></div>}
+          </div>
+          <div className="row">
+            <button className="btn" onClick={()=>setPreview(null)}>Tahrirlash / qayta</button>
+            <button className="btn primary" onClick={()=>{ onAdd(preview); }}>➕ Bo'limga qo'shish</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+/* ============ Flashcard runner ============ */
+function Flashcards({cards, deckName, known, setKnown, onExit}){
+  const total = cards.length;
+  const [queue, setQueue] = useState(()=>shuffle(cards));
+  const [flipped, setFlipped] = useState(false);
+  const [doneCount, setDoneCount] = useState(0);
+
+  const current = queue[0];
+  const finished = queue.length === 0;
+
+  function mark(ok){
+    if(!current) return;
+    if(ok){
+      setKnown(current.id, true);
+      setQueue(q=>q.slice(1));
+      setDoneCount(c=>c+1);
+    }else{
+      setKnown(current.id, false);
+      setQueue(q=> q.length>1 ? [...q.slice(1), q[0]] : q ); // back of deck, repeat
+    }
+    setFlipped(false);
+  }
+
+  if(finished){
+    return (
+      <div className="result pop">
+        <div style={{fontSize:46,marginBottom:8}}>🎉</div>
+        <div className="score">{total}</div>
+        <div className="grade">Hammasi takrorlandi!</div>
+        <div className="sub">{deckName} — barcha {total} ta so'zni "bildim" deb belgiladingiz.</div>
+        <div className="stack" style={{marginTop:10}}>
+          <button className="btn primary" onClick={()=>{ setQueue(shuffle(cards)); setDoneCount(0); }}>🔁 Qayta boshlash</button>
+          <button className="btn" onClick={onExit}>← Orqaga</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pop">
+      <div className="fc-top">
+        <button className="iconbtn" onClick={onExit}>←</button>
+        <span className="fc-count">{doneCount} / {total}</span>
+        <span style={{width:38}}></span>
+      </div>
+      <div className="progress"><i style={{width:(total? (doneCount/total*100):0)+'%'}}></i></div>
+
+      <div className="scene">
+        <div className={'flip'+(flipped?' flipped':'')} onClick={()=>setFlipped(f=>!f)}>
+          <div className="face front">
+            <JlptTag level={current.jlpt} />
+            <div className="jlpt" />
+            <div className="kanji">{current.kanji}</div>
+            <div className="hint">— bosing —</div>
+          </div>
+          <div className="face back">
+            <div className="mean">{current.uzbek}</div>
+            {current.hiragana && <div className="read">{current.hiragana}</div>}
+            {current.sentence
+              ? <div className="sent">{current.sentence}{current.sentenceUz && <span className="uz">{current.sentenceUz}</span>}</div>
+              : <div className="sent" style={{color:'#8a80a4',fontSize:12}}>misol gap yo'q — 🤖 AI bilan to'ldiring</div>}
+          </div>
+        </div>
+      </div>
+
+      <div className="row">
+        <button className="btn" style={{borderColor:'rgba(178,74,61,.4)',color:'var(--wrong)'}} onClick={()=>mark(false)}>✗ Bilmadim</button>
+        <button className="btn" style={{borderColor:'rgba(79,122,61,.5)',color:'var(--correct)'}} onClick={()=>mark(true)}>✓ Bildim</button>
+      </div>
+      <p style={{textAlign:'center',color:'var(--muted)',fontSize:12,marginTop:12}}>"Bilmadim" — so'z talaning oxiriga qaytadi va takrorlanadi.</p>
+    </div>
+  );
+}
+
+/* ============ Quiz builder ============ */
+function buildQuestions(cards){
+  const pool = cards;
+  const kanjiPool = pool.map(c=>c.kanji).filter(Boolean);
+  const hiraPool = pool.map(c=>c.hiragana).filter(Boolean);
+
+  function distractors(sourcePool, correct, n){
+    const opts = shuffle(sourcePool.filter(v=>v && v!==correct));
+    const uniq = [];
+    for(const v of opts){ if(!uniq.includes(v)) uniq.push(v); if(uniq.length>=n) break; }
+    return uniq;
+  }
+
+  return shuffle(cards).map(card=>{
+    const types = ['meaning'];
+    if(card.hiragana && hiraPool.length>=2){ types.push('reading','kanji'); }
+    if(card.sentence && card.kanji && card.sentence.includes(card.kanji)){ types.push('fill'); }
+    const type = types[Math.floor(Math.random()*types.length)];
+
+    let promptBig='', promptMed='', promptSub='', correct='', optionPool=[], badge='';
+    if(type==='meaning'){ // show uzbek -> pick kanji
+      promptMed = card.uzbek; correct = card.kanji; optionPool = kanjiPool; badge='意味';
+    }else if(type==='reading'){ // show kanji -> pick hiragana
+      promptBig = card.kanji; correct = card.hiragana; optionPool = hiraPool; badge='読み方';
+    }else if(type==='kanji'){ // show hiragana -> pick kanji
+      promptMed = card.hiragana; promptSub = card.uzbek; correct = card.kanji; optionPool = kanjiPool; badge='漢字';
+    }else if(type==='fill'){ // sentence blank -> pick kanji
+      promptMed = card.sentence.split(card.kanji).join('（ ＿＿ ）'); correct = card.kanji; optionPool = kanjiPool; badge='穴埋め';
+    }
+    const opts = shuffle([correct, ...distractors(optionPool, correct, 3)]);
+    return { card, type, badge, promptBig, promptMed, promptSub, correct, options: opts };
+  });
+}
+
+function Quiz({cards, deckName, known, setKnown, onExit}){
+  const [questions] = useState(()=>buildQuestions(cards));
+  const [idx, setIdx] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState({c:0,w:0});
+  const [wrongList, setWrongList] = useState([]);
+  const timer = useRef(null);
+
+  useEffect(()=>()=>{ if(timer.current) clearTimeout(timer.current); }, []);
+
+  const q = questions[idx];
+  const finished = idx >= questions.length;
+
+  function choose(opt){
+    if(selected!=null || !q) return;
+    setSelected(opt);
+    const ok = opt === q.correct;
+    if(ok){
+      setScore(s=>({...s,c:s.c+1}));
+      setKnown(q.card.id, true);
+      timer.current = setTimeout(()=>next(), 650);
+    }else{
+      setScore(s=>({...s,w:s.w+1}));
+      setKnown(q.card.id, false);
+      setWrongList(l=>[...l, q.card]);
+    }
+  }
+  function next(){ setSelected(null); setIdx(i=>i+1); }
+
+  if(finished){
+    const totalQ = questions.length;
+    const pct = totalQ? Math.round(score.c/totalQ*100) : 0;
+    const grade = pct>=90?'🏆 Ajoyib!':pct>=70?'👍 Yaxshi!':pct>=50?'📚 Davom eting':'💪 Mashq kerak';
+    return (
+      <div className="result pop">
+        <div className="score">{pct}%</div>
+        <div className="grade">{grade}</div>
+        <div className="sub">{totalQ} ta savoldan {score.c} tasi to'g'ri</div>
+        {wrongList.length>0 && (
+          <div>
+            <div className="section-title" style={{marginTop:18}}>Xato qilganlaringiz</div>
+            <div className="wrong-list">
+              {wrongList.map((c,i)=>(
+                <div className="wrong-item" key={i}>
+                  <span className="k">{c.kanji}</span>{' '}
+                  {c.hiragana && <span className="r">{c.hiragana}</span>}
+                  <div className="m">{c.uzbek}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="stack" style={{marginTop:14}}>
+          <button className="btn primary" onClick={()=>onExit('retry')}>🔁 Qayta urinish</button>
+          <button className="btn" onClick={()=>onExit()}>← Orqaga</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pop">
+      <div className="fc-top">
+        <button className="iconbtn" onClick={()=>onExit()}>←</button>
+        <span className="fc-count">SAVOL {idx+1} / {questions.length}</span>
+        <span style={{width:38}}></span>
+      </div>
+      <div className="q-scorebar">
+        <div className="it"><div className="n" style={{color:'var(--correct)'}}>{score.c}</div><div className="l">To'g'ri</div></div>
+        <div className="it"><div className="n" style={{color:'var(--wrong)'}}>{score.w}</div><div className="l">Xato</div></div>
+        <div className="it"><div className="n" style={{color:'var(--accent)'}}>{questions.length-idx}</div><div className="l">Qoldi</div></div>
+      </div>
+
+      <div className="q-card slide" key={idx}>
+        <span className="q-badge">{q.badge}</span>
+        <div className="q-prompt">
+          {q.promptBig && <div className="big">{q.promptBig}</div>}
+          {q.promptMed && <div className="med">{q.promptMed}</div>}
+          {q.promptSub && <div className="sub">{q.promptSub}</div>}
+        </div>
+        <div className="q-opts">
+          {q.options.map((opt,i)=>{
+            let cls='q-opt';
+            if(selected!=null){
+              if(opt===q.correct) cls+=' correct';
+              else if(opt===selected) cls+=' wrong';
+            }
+            return <button key={i} className={cls} disabled={selected!=null} onClick={()=>choose(opt)}>{opt}</button>;
+          })}
+        </div>
+
+        {selected!=null && selected!==q.correct && (
+          <div className="q-feedback">
+            <div className="fmsg no">✗ Noto'g'ri</div>
+            <div className="ans">
+              <span className="k">{q.card.kanji}</span>{' '}
+              {q.card.hiragana && <span className="r">{q.card.hiragana}</span>}
+              <div className="m">{q.card.uzbek}</div>
+              {q.card.sentence && <div style={{marginTop:6,fontFamily:"'Noto Serif JP',serif"}}>{q.card.sentence}</div>}
+            </div>
+            <button className="btn primary" style={{marginTop:12}} onClick={next}>Keyingi savol →</button>
+          </div>
+        )}
+        {selected!=null && selected===q.correct && (
+          <div className="q-feedback"><div className="fmsg ok">✓ To'g'ri!</div></div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============ Main App ============ */
+function App(){
+  const [decks, setDecks] = useLocalState(LS.decks, null);
+  const [knownMap, setKnownMap] = useLocalState(LS.known, {});
+  const [rawSettings, setSettings] = useLocalState(LS.api, DEFAULT_SETTINGS);
+  const settings = normalizeSettings(rawSettings);
+
+  // initialize decks once
+  useEffect(()=>{ if(decks===null){ setDecks(loadDecks()); } }, []);
+
+  const [nav, setNav] = useState({screen:'decks'}); // decks | home | flashGroups | quizGroups | flash | quiz | words
+  const [modal, setModal] = useState(null); // {type:'settings'|'newDeck'|'addWord'|'editWord'|'aiAdd'}
+  const [search, setSearch] = useState('');
+
+  const dks = decks || [];
+  const activeDeck = dks.find(d=>d.id===nav.deckId) || null;
+
+  function setKnown(id, val){ setKnownMap(m=>{ const n={...m}; if(val) n[id]=true; else delete n[id]; return n; }); }
+  const isKnown = (id)=> !!knownMap[id];
+
+  /* deck ops */
+  function addDeck(name, emoji){
+    const d = { id: uid(), name: name.trim()||'Yangi bo\'lim', emoji: emoji||'📚', cards:[] };
+    setDecks(ds=>[...(ds||[]), d]);
+    setModal(null);
+    setNav({screen:'home', deckId:d.id});
+  }
+  function deleteDeck(id){
+    if(!window.confirm('Bu bo\'limni va undagi barcha so\'zlarni o\'chirishni xohlaysizmi?')) return;
+    setDecks(ds=>ds.filter(d=>d.id!==id));
+    setNav({screen:'decks'});
+  }
+  function updateDeckCards(deckId, fn){
+    setDecks(ds=>ds.map(d=> d.id===deckId ? {...d, cards: fn(d.cards)} : d));
+  }
+  function addCard(deckId, card){
+    updateDeckCards(deckId, cs=>[{...card, id: uid()}, ...cs]);
+  }
+  function updateCard(deckId, cardId, card){
+    updateDeckCards(deckId, cs=>cs.map(c=>c.id===cardId?{...c,...card}:c));
+  }
+  function deleteCard(deckId, cardId){
+    updateDeckCards(deckId, cs=>cs.filter(c=>c.id!==cardId));
+  }
+
+  /* export / import */
+  function exportData(){
+    const blob = new Blob([JSON.stringify({decks:dks, known:knownMap}, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'nihongo_backup.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function importData(file){
+    const r = new FileReader();
+    r.onload = ()=>{
+      try{
+        const obj = JSON.parse(r.result);
+        if(Array.isArray(obj.decks)){ setDecks(obj.decks); if(obj.known) setKnownMap(obj.known); alert('Import muvaffaqiyatli!'); setModal(null); }
+        else alert('Noto\'g\'ri fayl.');
+      }catch(e){ alert('Faylni o\'qib bo\'lmadi: '+e.message); }
+    };
+    r.readAsText(file);
+  }
+
+  const totalCards = dks.reduce((s,d)=>s+d.cards.length,0);
+
+  /* ---------- screens ---------- */
+  function DeckSelect(){
+    return (
+      <div className="wrap pop">
+        <div className="pillrow">
+          <span className="pill"><span className="dot" style={{background:'var(--accent)'}}></span><b>{dks.length}</b> bo'lim</span>
+          <span className="pill"><span className="dot" style={{background:'var(--ink)'}}></span><b>{totalCards}</b> so'z</span>
+          <span className="pill"><span className="dot" style={{background:'var(--correct)'}}></span><b>{Object.keys(knownMap).length}</b> bilingan</span>
+        </div>
+        <div className="section-title">Bo'limlar</div>
+        <div className="deck-grid">
+          {dks.map((d,i)=>(
+            <button key={d.id} className="deck" style={{background:DECK_GRADIENTS[i%DECK_GRADIENTS.length]}}
+                    onClick={()=>setNav({screen:'home', deckId:d.id})}>
+              <span className="dcount">{d.cards.length}</span>
+              <span className="emoji">{d.emoji}</span>
+              <div>
+                <div className="dname">{d.name}</div>
+                <div className="dprev">{d.cards.slice(0,8).map(c=>c.kanji).join('・') || 'bo\'sh'}</div>
+              </div>
+            </button>
+          ))}
+          <button className="deck-add" onClick={()=>setModal({type:'newDeck'})}>
+            <span className="plus">+</span>Yangi bo'lim
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function DeckHome(){
+    const d = activeDeck;
+    if(!d) return null;
+    const knownCount = d.cards.filter(c=>isKnown(c.id)).length;
+    const enriched = d.cards.filter(c=>c.hiragana).length;
+    return (
+      <div className="wrap pop">
+        <div className="crumb">
+          <button className="iconbtn" onClick={()=>setNav({screen:'decks'})}>←</button>
+          <span style={{fontSize:24}}>{d.emoji}</span>
+          <b>{d.name}</b>
+        </div>
+        <div className="pillrow">
+          <span className="pill"><b>{d.cards.length}</b> so'z</span>
+          <span className="pill" style={{color:'var(--correct)'}}><b>{knownCount}</b> bilingan</span>
+          <span className="pill"><b>{enriched}</b> 🤖 to'ldirilgan</span>
+        </div>
+        <div className="stack">
+          <button className="btn primary" disabled={!d.cards.length} onClick={()=>setNav({screen:'flashGroups', deckId:d.id})}>📖 Flashcard ({Math.ceil(d.cards.length/FLASH_SIZE)} ta to'plam)</button>
+          <button className="btn dark" disabled={d.cards.length<2} onClick={()=>setNav({screen:'quizGroups', deckId:d.id})}>🧪 Test ({Math.ceil(d.cards.length/QUIZ_SIZE)} ta to'plam)</button>
+          <button className="btn" onClick={()=>setModal({type:'aiAdd'})}>🤖 AI bilan so'z qo'shish</button>
+          <button className="btn" onClick={()=>setNav({screen:'words', deckId:d.id})}>📋 So'zlarni boshqarish ({d.cards.length})</button>
+          <button className="btn danger sm" style={{width:'auto',alignSelf:'flex-start',marginTop:4}} onClick={()=>deleteDeck(d.id)}>🗑 Bo'limni o'chirish</button>
+        </div>
+        {d.cards.length<2 && <p className="note" style={{marginTop:14}}>Test rejimi uchun kamida 2 ta so'z kerak. So'z qo'shing 👆</p>}
+      </div>
+    );
+  }
+
+  function FlashGroups(){
+    const d = activeDeck; if(!d) return null;
+    const groups = chunk(d.cards, FLASH_SIZE);
+    return (
+      <div className="wrap pop">
+        <div className="crumb">
+          <button className="iconbtn" onClick={()=>setNav({screen:'home', deckId:d.id})}>←</button>
+          <b>📖 Flashcard</b>
+        </div>
+        <button className="btn primary" style={{marginBottom:14}}
+                onClick={()=>setNav({screen:'flash', deckId:d.id, cards:d.cards})}>▶ Barchasi ({d.cards.length} ta)</button>
+        <div className="section-title">To'plamlar (5 tadan)</div>
+        <div className="group-grid">
+          {groups.map((g,i)=>(
+            <button key={i} className="group" style={{background:FLASH_GRADS[i%FLASH_GRADS.length]}}
+                    onClick={()=>setNav({screen:'flash', deckId:d.id, cards:g})}>
+              <div className="gnum">To'plam {i+1}</div>
+              <div className="gmeta">{g.map(c=>c.kanji).slice(0,4).join('・')}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function QuizGroups(){
+    const d = activeDeck; if(!d) return null;
+    const groups = chunk(d.cards, QUIZ_SIZE);
+    return (
+      <div className="wrap pop">
+        <div className="crumb">
+          <button className="iconbtn" onClick={()=>setNav({screen:'home', deckId:d.id})}>←</button>
+          <b>🧪 Test</b>
+        </div>
+        <button className="btn dark" style={{marginBottom:14}}
+                onClick={()=>setNav({screen:'quiz', deckId:d.id, cards:d.cards})}>▶ Barchasi ({d.cards.length} ta savol)</button>
+        <div className="section-title">To'plamlar (11 tadan)</div>
+        <div className="qlist">
+          {groups.map((g,i)=>(
+            <button key={i} className="qrow" style={{background:QUIZ_GRADS[i%QUIZ_GRADS.length]}}
+                    onClick={()=>setNav({screen:'quiz', deckId:d.id, cards:g})}>
+              <span className="qt">To'plam {i+1}</span>
+              <span className="qm">{g.length} ta savol</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function WordsManage(){
+    const d = activeDeck; if(!d) return null;
+    const q = search.trim().toLowerCase();
+    const list = q ? d.cards.filter(c=> (c.kanji+c.hiragana+c.uzbek).toLowerCase().includes(q)) : d.cards;
+    return (
+      <div className="wrap pop">
+        <div className="crumb">
+          <button className="iconbtn" onClick={()=>setNav({screen:'home', deckId:d.id})}>←</button>
+          <b>📋 {d.name}</b>
+        </div>
+        <div className="row" style={{marginBottom:14}}>
+          <button className="btn primary sm" style={{flex:1}} onClick={()=>setModal({type:'addWord'})}>➕ Qo'lda qo'shish</button>
+          <button className="btn dark sm" style={{flex:1}} onClick={()=>setModal({type:'aiAdd'})}>🤖 AI bilan</button>
+        </div>
+        <input className="search" placeholder="🔍 qidirish..." value={search} onChange={e=>setSearch(e.target.value)} />
+        {list.length===0
+          ? <div className="empty"><div className="em">📭</div>{q?'Topilmadi':'So\'z yo\'q — qo\'shing!'}</div>
+          : list.map(c=>(
+            <div className="wcard" key={c.id}>
+              <div className="wtop">
+                <div style={{flex:1}}>
+                  <span className="wk">{c.kanji}</span> {c.jlpt && <JlptTag level={c.jlpt} />}
+                  {c.hiragana && <div className="wr">{c.hiragana}</div>}
+                  <div className="wm">{c.uzbek}</div>
+                  {c.sentence && <div className="ws">{c.sentence}{c.sentenceUz && <span style={{display:'block',color:'#b3a690'}}>{c.sentenceUz}</span>}</div>}
+                </div>
+                <div className="wact">
+                  <button className="miniicon" title="Tahrirlash" onClick={()=>setModal({type:'editWord', card:c})}>✏️</button>
+                  <button className="miniicon" title="O'chirish" onClick={()=>{ if(window.confirm('O\'chirilsinmi?')) deleteCard(d.id, c.id); }}>🗑</button>
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    );
+  }
+
+  /* ---------- render ---------- */
+  let content = null;
+  const screen = nav.screen;
+  if(screen==='decks') content = <DeckSelect/>;
+  else if(screen==='home') content = <DeckHome/>;
+  else if(screen==='flashGroups') content = <FlashGroups/>;
+  else if(screen==='quizGroups') content = <QuizGroups/>;
+  else if(screen==='words') content = <WordsManage/>;
+  else if(screen==='flash') content = (
+    <div className="wrap">
+      <Flashcards cards={nav.cards} deckName={activeDeck?activeDeck.name:''} known={knownMap} setKnown={setKnown}
+                  onExit={()=>setNav({screen:'flashGroups', deckId:nav.deckId})}/>
+    </div>
+  );
+  else if(screen==='quiz') content = (
+    <div className="wrap">
+      <Quiz cards={nav.cards} deckName={activeDeck?activeDeck.name:''} known={knownMap} setKnown={setKnown}
+            onExit={(act)=>{ if(act==='retry') setNav({screen:'quiz', deckId:nav.deckId, cards:nav.cards, _r:Math.random()}); else setNav({screen:'quizGroups', deckId:nav.deckId}); }}/>
+    </div>
+  );
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <span className="ttl"><span className="jp">日本語</span> Study</span>
+        <button className="iconbtn" title="Sozlamalar" onClick={()=>setModal({type:'settings'})}>⚙️</button>
+      </div>
+
+      {content}
+
+      {modal?.type==='newDeck' && <NewDeckModal onClose={()=>setModal(null)} onCreate={addDeck} />}
+      {modal?.type==='settings' && (
+        <SettingsModal settings={settings} setSettings={setSettings} onClose={()=>setModal(null)}
+                       onExport={exportData} onImport={importData} />
+      )}
+      {modal?.type==='addWord' && (
+        <Modal title="➕ Yangi so'z" sub={activeDeck?.name} onClose={()=>setModal(null)}>
+          <WordForm settings={settings}
+                    onCancel={()=>setModal(null)}
+                    onSave={(card)=>{ addCard(nav.deckId, card); setModal(null); }} />
+        </Modal>
+      )}
+      {modal?.type==='editWord' && (
+        <Modal title="✏️ So'zni tahrirlash" onClose={()=>setModal(null)}>
+          <WordForm initial={modal.card} settings={settings}
+                    onCancel={()=>setModal(null)}
+                    onSave={(card)=>{ updateCard(nav.deckId, modal.card.id, card); setModal(null); }} />
+        </Modal>
+      )}
+      {modal?.type==='aiAdd' && (
+        <AiAddModal settings={settings}
+                    onNeedKey={()=>setModal({type:'settings'})}
+                    onAdd={(card)=>{ addCard(nav.deckId || (dks[0]&&dks[0].id), card); setModal(null);
+                                     if(!nav.deckId && dks[0]) setNav({screen:'words', deckId:dks[0].id}); }}
+                    onClose={()=>setModal(null)} />
+      )}
+    </div>
+  );
+}
+
+function NewDeckModal({onClose, onCreate}){
+  const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState(EMOJIS[0]);
+  return (
+    <Modal title="Yangi bo'lim" sub="So'zlaringizni guruhlash uchun yangi bo'lim oching." onClose={onClose}>
+      <div className="field">
+        <label>Bo'lim nomi</label>
+        <input value={name} autoFocus onChange={e=>setName(e.target.value)} placeholder="masalan: JLPT N3, Sayohat, Ish..." onKeyDown={e=>{if(e.key==='Enter'&&name.trim())onCreate(name,emoji);}}/>
+      </div>
+      <div className="field">
+        <label>Emoji</label>
+        <div className="emoji-pick">
+          {EMOJIS.map(e=><button key={e} className={emoji===e?'sel':''} onClick={()=>setEmoji(e)}>{e}</button>)}
+        </div>
+      </div>
+      <button className="btn primary" disabled={!name.trim()} onClick={()=>onCreate(name,emoji)}>Yaratish</button>
+    </Modal>
+  );
+}
+
+function SettingsModal({settings, setSettings, onClose, onExport, onImport}){
+  const [provider, setProvider] = useState(settings.provider||'gemini');
+  const [geminiKey, setGeminiKey] = useState(settings.geminiKey||'');
+  const [geminiModel, setGeminiModel] = useState(settings.geminiModel||DEFAULT_GEMINI_MODEL);
+  const [anthropicKey, setAnthropicKey] = useState(settings.anthropicKey||'');
+  const [anthropicModel, setAnthropicModel] = useState(settings.anthropicModel||DEFAULT_ANTHROPIC_MODEL);
+  const fileRef = useRef();
+
+  function save(){
+    setSettings({ provider, geminiKey:geminiKey.trim(), geminiModel, anthropicKey:anthropicKey.trim(), anthropicModel });
+    onClose();
+  }
+
+  return (
+    <Modal title="⚙️ Sozlamalar" onClose={onClose}>
+      <div className="section-title" style={{margin:'2px 0 10px'}}>AI provayder</div>
+      <div className="row" style={{marginBottom:14}}>
+        <button className={'btn sm'+(provider==='gemini'?' primary':'')} style={{flex:1}} onClick={()=>setProvider('gemini')}>🟢 Gemini · BEPUL</button>
+        <button className={'btn sm'+(provider==='anthropic'?' primary':'')} style={{flex:1}} onClick={()=>setProvider('anthropic')}>🟣 Claude · pullik</button>
+      </div>
+
+      {provider==='gemini' ? (
+        <>
+          <div className="field">
+            <label>Google AI Studio API kaliti (bepul)</label>
+            <input type="password" value={geminiKey} onChange={e=>setGeminiKey(e.target.value)} placeholder="AIza..." />
+          </div>
+          <div className="field">
+            <label>Model</label>
+            <select value={geminiModel} onChange={e=>setGeminiModel(e.target.value)}>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (tavsiya, bepul)</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite (eng tez)</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            </select>
+          </div>
+          <button className="btn primary" onClick={save}>Saqlash</button>
+          <div className="note" style={{marginTop:12}}>
+            🆓 <b>Bepul kalit olish:</b> <b>aistudio.google.com</b> ga Google akkauntingiz bilan kiring → <b>“Get API key”</b> → <b>“Create API key”</b>. Kredit karta <b>kerak emas</b>. Bepul limit kunlik so'rovlar uchun yetarli.
+            <br/>🔒 Kalit faqat shu brauzerda saqlanadi.
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="field">
+            <label>Anthropic API kaliti</label>
+            <input type="password" value={anthropicKey} onChange={e=>setAnthropicKey(e.target.value)} placeholder="sk-ant-..." />
+          </div>
+          <div className="field">
+            <label>Model</label>
+            <select value={anthropicModel} onChange={e=>setAnthropicModel(e.target.value)}>
+              <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (tez, arzon)</option>
+              <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (aniqroq)</option>
+              <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (eng kuchli)</option>
+            </select>
+          </div>
+          <button className="btn primary" onClick={save}>Saqlash</button>
+          <div className="note" style={{marginTop:12}}>
+            💳 <b>Pullik:</b> kalit <b>console.anthropic.com</b> dan olinadi va hisobingizda kredit bo'lishi shart (claude.ai obunasi API uchun ishlamaydi). 🔒 Kalit faqat shu brauzerda saqlanadi.
+          </div>
+        </>
+      )}
+
+      <div className="section-title" style={{margin:'20px 0 10px'}}>Ma'lumotlar (zaxira)</div>
+      <div className="row">
+        <button className="btn sm" style={{flex:1}} onClick={onExport}>⬇️ Eksport (JSON)</button>
+        <button className="btn sm" style={{flex:1}} onClick={()=>fileRef.current.click()}>⬆️ Import</button>
+      </div>
+      <input ref={fileRef} type="file" accept="application/json" style={{display:'none'}}
+             onChange={e=>{ if(e.target.files[0]) onImport(e.target.files[0]); }} />
+    </Modal>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
