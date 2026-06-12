@@ -259,7 +259,25 @@ const QUIZ_GRADS = [
 const EMOJIS = ['📚','🌅','🗻','🍣','🌸','⛩️','🎌','🍵','📖','🎴','🐉','🌊','🦊','🏯','✏️','🧧','🎋','🪷','🍙','🎐'];
 const FLASH_SIZE = 5;
 const QUIZ_SIZE = 11;
-const DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
+const DEFAULT_ANTHROPIC_MODEL = 'claude-3-5-haiku-20241022';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = DEFAULT_ANTHROPIC_MODEL; // back-compat
+const DEFAULT_SETTINGS = {
+  provider:'gemini',                        // 'gemini' (bepul) | 'anthropic' (pullik)
+  geminiKey:'',    geminiModel: DEFAULT_GEMINI_MODEL,
+  anthropicKey:'', anthropicModel: DEFAULT_ANTHROPIC_MODEL
+};
+// Migrate old {key,model} format and fill any missing fields
+function normalizeSettings(s){
+  s = s || {};
+  if(s.provider) return {...DEFAULT_SETTINGS, ...s};
+  if(s.key!==undefined || s.model!==undefined){ // legacy anthropic-only
+    return {...DEFAULT_SETTINGS, provider:'anthropic', anthropicKey:s.key||'', anthropicModel:s.model||DEFAULT_ANTHROPIC_MODEL};
+  }
+  return {...DEFAULT_SETTINGS};
+}
+function hasKey(settings){ return settings.provider==='gemini' ? !!settings.geminiKey : !!settings.anthropicKey; }
+function providerLabel(settings){ return settings.provider==='gemini' ? 'Gemini' : 'Claude'; }
 
 /* ============ Helpers ============ */
 let _idc = 0;
@@ -302,10 +320,9 @@ function useLocalState(key, initial){
   return [val, setVal];
 }
 
-/* ============ Claude AI ============ */
-async function callClaude(term, apiKey, model){
-  const prompt =
-`You are a Japanese vocabulary assistant for an Uzbek learner.
+/* ============ AI (Claude / Gemini) ============ */
+function aiPrompt(term){
+  return `You are a Japanese vocabulary assistant for an Uzbek learner.
 The user gives a term that is either a Japanese word (kanji/kana) or an Uzbek word.
 Term: "${term}"
 
@@ -313,33 +330,13 @@ Return ONLY one strict JSON object (no markdown, no commentary) with EXACTLY the
 {"kanji":"<the Japanese word as normally written>","hiragana":"<reading in hiragana only>","uzbek":"<short Uzbek meaning in latin script>","jlpt":"<one of N5,N4,N3,N2,N1>","sentence":"<one natural example sentence in Japanese that uses the word>","sentenceUz":"<Uzbek translation of that sentence>"}
 
 Rules: hiragana must be kana only. jlpt is your best estimate. Keep uzbek concise. Output valid JSON only.`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'content-type':'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body: JSON.stringify({
-      model: model || DEFAULT_MODEL,
-      max_tokens: 600,
-      messages:[{ role:'user', content: prompt }]
-    })
-  });
-  if(!res.ok){
-    let detail='';
-    try{ const e = await res.json(); detail = e.error?.message || JSON.stringify(e); }catch(_){ detail = await res.text(); }
-    throw new Error('API ('+res.status+'): ' + detail);
-  }
-  const data = await res.json();
-  const text = (data.content||[]).map(b=>b.text||'').join('').trim();
+}
+function parseAi(text, term){
   let obj;
   try{ obj = JSON.parse(text); }
   catch(e){
-    const m = text.match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('AI javobini o\'qib bo\'lmadi: ' + text.slice(0,160));
+    const m = (text||'').match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('AI javobini o\'qib bo\'lmadi: ' + (text||'').slice(0,160));
     obj = JSON.parse(m[0]);
   }
   return {
@@ -350,6 +347,62 @@ Rules: hiragana must be kana only. jlpt is your best estimate. Keep uzbek concis
     sentence:(obj.sentence||'').trim(),
     sentenceUz:(obj.sentenceUz||'').trim()
   };
+}
+function keyHint(status){
+  if(status===401 || status===403) return ' — API kalit noto\'g\'ri yoki ruxsat yo\'q. ⚙️ Sozlamalardan kalitni tekshiring.';
+  if(status===400) return ' — so\'rov yoki kalit noto\'g\'ri bo\'lishi mumkin.';
+  if(status===429) return ' — limit tugadi, biroz kutib qayta urining.';
+  return '';
+}
+
+async function callClaude(term, apiKey, model){
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({ model: model || DEFAULT_ANTHROPIC_MODEL, max_tokens: 600, messages:[{ role:'user', content: aiPrompt(term) }] })
+  });
+  if(!res.ok){
+    let detail=''; try{ const e = await res.json(); detail = e.error?.message || JSON.stringify(e); }catch(_){ detail = await res.text(); }
+    throw new Error('Claude API ('+res.status+'): ' + detail + keyHint(res.status));
+  }
+  const data = await res.json();
+  const text = (data.content||[]).map(b=>b.text||'').join('').trim();
+  return parseAi(text, term);
+}
+
+async function callGemini(term, apiKey, model){
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + (model||DEFAULT_GEMINI_MODEL) + ':generateContent?key=' + encodeURIComponent(apiKey);
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body: JSON.stringify({
+      contents:[{ role:'user', parts:[{ text: aiPrompt(term) }] }],
+      generationConfig:{ temperature:0.4, responseMimeType:'application/json' }
+    })
+  });
+  if(!res.ok){
+    let detail=''; try{ const e = await res.json(); detail = e.error?.message || JSON.stringify(e); }catch(_){ detail = await res.text(); }
+    throw new Error('Gemini API ('+res.status+'): ' + detail + keyHint(res.status));
+  }
+  const data = await res.json();
+  if(data.promptFeedback && data.promptFeedback.blockReason) throw new Error('Gemini so\'rovni rad etdi: ' + data.promptFeedback.blockReason);
+  const text = ((data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim();
+  if(!text) throw new Error('Gemini bo\'sh javob qaytardi. Qayta urining.');
+  return parseAi(text, term);
+}
+
+async function callAI(term, settings){
+  if(settings.provider==='gemini'){
+    if(!settings.geminiKey) throw new Error('Gemini API kaliti kiritilmagan (⚙️ Sozlamalar).');
+    return callGemini(term, settings.geminiKey, settings.geminiModel);
+  }
+  if(!settings.anthropicKey) throw new Error('Anthropic API kaliti kiritilmagan (⚙️ Sozlamalar).');
+  return callClaude(term, settings.anthropicKey, settings.anthropicModel);
 }
 
 /* ============ Small UI ============ */
@@ -377,18 +430,18 @@ function Modal({title, sub, onClose, children}){
 }
 
 /* ============ Word form (add/edit) ============ */
-function WordForm({initial, onSave, onCancel, apiKey, model}){
+function WordForm({initial, onSave, onCancel, settings}){
   const [f, setF] = useState(initial || {kanji:'',hiragana:'',uzbek:'',jlpt:'',sentence:'',sentenceUz:''});
   const [enriching, setEnriching] = useState(false);
   const [err, setErr] = useState('');
   const set = (k,v)=> setF(p=>({...p,[k]:v}));
 
   async function enrich(){
-    if(!apiKey){ setErr('Avval ⚙️ Sozlamalardan Claude API kalitini kiriting.'); return; }
+    if(!hasKey(settings)){ setErr('Avval ⚙️ Sozlamalardan AI kalitini kiriting ('+providerLabel(settings)+').'); return; }
     if(!f.kanji.trim()){ setErr('Avval so\'zni (kanji) kiriting.'); return; }
     setErr(''); setEnriching(true);
     try{
-      const r = await callClaude(f.kanji.trim(), apiKey, model);
+      const r = await callAI(f.kanji.trim(), settings);
       setF(p=>({
         kanji: p.kanji || r.kanji,
         hiragana: p.hiragana || r.hiragana,
@@ -446,26 +499,27 @@ function WordForm({initial, onSave, onCancel, apiKey, model}){
 }
 
 /* ============ AI add modal ============ */
-function AiAddModal({apiKey, model, onAdd, onClose, onNeedKey}){
+function AiAddModal({settings, onAdd, onClose, onNeedKey}){
   const [term, setTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [preview, setPreview] = useState(null);
+  const ready = hasKey(settings);
 
   async function generate(){
-    if(!apiKey){ onNeedKey(); return; }
+    if(!ready){ onNeedKey(); return; }
     if(!term.trim()) return;
     setErr(''); setLoading(true); setPreview(null);
     try{
-      const r = await callClaude(term.trim(), apiKey, model);
+      const r = await callAI(term.trim(), settings);
       setPreview(r);
     }catch(e){ setErr(e.message); }
     setLoading(false);
   }
 
   return (
-    <Modal title="🤖 AI bilan so'z qo'shish" sub="So'z yozing — Claude tarjima, o'qilishi, JLPT daraja va misol gapni o'zi to'ldiradi." onClose={onClose}>
-      {!apiKey && <div className="note">⚠️ Claude API kaliti kiritilmagan. Generatsiya qilish uchun ⚙️ Sozlamalardan kalitni kiriting.</div>}
+    <Modal title="🤖 AI bilan so'z qo'shish" sub={'So\'z yozing — '+providerLabel(settings)+' tarjima, o\'qilishi, JLPT daraja va misol gapni o\'zi to\'ldiradi.'} onClose={onClose}>
+      {!ready && <div className="note">⚠️ AI kaliti kiritilmagan. Generatsiya uchun ⚙️ Sozlamalardan kalitni kiriting. <b>Gemini bepul</b> variant ham bor.</div>}
       {err && <div className="err">{err}</div>}
       <div className="field" style={{marginTop:12}}>
         <label>So'z (yaponcha yoki o'zbekcha)</label>
@@ -720,7 +774,8 @@ function Quiz({cards, deckName, known, setKnown, onExit}){
 function App(){
   const [decks, setDecks] = useLocalState(LS.decks, null);
   const [knownMap, setKnownMap] = useLocalState(LS.known, {});
-  const [settings, setSettings] = useLocalState(LS.api, {key:'', model:DEFAULT_MODEL});
+  const [rawSettings, setSettings] = useLocalState(LS.api, DEFAULT_SETTINGS);
+  const settings = normalizeSettings(rawSettings);
 
   // initialize decks once
   useEffect(()=>{ if(decks===null){ setDecks(loadDecks()); } }, []);
@@ -967,20 +1022,20 @@ function App(){
       )}
       {modal?.type==='addWord' && (
         <Modal title="➕ Yangi so'z" sub={activeDeck?.name} onClose={()=>setModal(null)}>
-          <WordForm apiKey={settings.key} model={settings.model}
+          <WordForm settings={settings}
                     onCancel={()=>setModal(null)}
                     onSave={(card)=>{ addCard(nav.deckId, card); setModal(null); }} />
         </Modal>
       )}
       {modal?.type==='editWord' && (
         <Modal title="✏️ So'zni tahrirlash" onClose={()=>setModal(null)}>
-          <WordForm initial={modal.card} apiKey={settings.key} model={settings.model}
+          <WordForm initial={modal.card} settings={settings}
                     onCancel={()=>setModal(null)}
                     onSave={(card)=>{ updateCard(nav.deckId, modal.card.id, card); setModal(null); }} />
         </Modal>
       )}
       {modal?.type==='aiAdd' && (
-        <AiAddModal apiKey={settings.key} model={settings.model}
+        <AiAddModal settings={settings}
                     onNeedKey={()=>setModal({type:'settings'})}
                     onAdd={(card)=>{ addCard(nav.deckId || (dks[0]&&dks[0].id), card); setModal(null);
                                      if(!nav.deckId && dks[0]) setNav({screen:'words', deckId:dks[0].id}); }}
@@ -1011,30 +1066,68 @@ function NewDeckModal({onClose, onCreate}){
 }
 
 function SettingsModal({settings, setSettings, onClose, onExport, onImport}){
-  const [key, setKey] = useState(settings.key||'');
-  const [model, setModel] = useState(settings.model||DEFAULT_MODEL);
+  const [provider, setProvider] = useState(settings.provider||'gemini');
+  const [geminiKey, setGeminiKey] = useState(settings.geminiKey||'');
+  const [geminiModel, setGeminiModel] = useState(settings.geminiModel||DEFAULT_GEMINI_MODEL);
+  const [anthropicKey, setAnthropicKey] = useState(settings.anthropicKey||'');
+  const [anthropicModel, setAnthropicModel] = useState(settings.anthropicModel||DEFAULT_ANTHROPIC_MODEL);
   const fileRef = useRef();
+
+  function save(){
+    setSettings({ provider, geminiKey:geminiKey.trim(), geminiModel, anthropicKey:anthropicKey.trim(), anthropicModel });
+    onClose();
+  }
+
   return (
     <Modal title="⚙️ Sozlamalar" onClose={onClose}>
-      <div className="section-title" style={{margin:'2px 0 10px'}}>Claude AI</div>
-      <div className="field">
-        <label>Anthropic API kaliti</label>
-        <input type="password" value={key} onChange={e=>setKey(e.target.value)} placeholder="sk-ant-..." />
+      <div className="section-title" style={{margin:'2px 0 10px'}}>AI provayder</div>
+      <div className="row" style={{marginBottom:14}}>
+        <button className={'btn sm'+(provider==='gemini'?' primary':'')} style={{flex:1}} onClick={()=>setProvider('gemini')}>🟢 Gemini · BEPUL</button>
+        <button className={'btn sm'+(provider==='anthropic'?' primary':'')} style={{flex:1}} onClick={()=>setProvider('anthropic')}>🟣 Claude · pullik</button>
       </div>
-      <div className="field">
-        <label>Model</label>
-        <select value={model} onChange={e=>setModel(e.target.value)}>
-          <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (tez, arzon)</option>
-          <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (aniqroq)</option>
-          <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
-          <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (eng kuchli)</option>
-        </select>
-      </div>
-      <button className="btn primary" onClick={()=>{ setSettings({key:key.trim(), model}); onClose(); }}>Saqlash</button>
-      <div className="note" style={{marginTop:12}}>
-        🔒 Kalit faqat shu brauzeringizda (localStorage) saqlanadi, hech qayerga yuborilmaydi. So'rovlar to'g'ridan-to'g'ri sizning brauzeringizdan Anthropic'ga ketadi va xarajatlar sizning hisobingizdan yechiladi.
-        Kalitni <b>console.anthropic.com</b> dan olasiz.
-      </div>
+
+      {provider==='gemini' ? (
+        <>
+          <div className="field">
+            <label>Google AI Studio API kaliti (bepul)</label>
+            <input type="password" value={geminiKey} onChange={e=>setGeminiKey(e.target.value)} placeholder="AIza..." />
+          </div>
+          <div className="field">
+            <label>Model</label>
+            <select value={geminiModel} onChange={e=>setGeminiModel(e.target.value)}>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (tavsiya, bepul)</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite (eng tez)</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            </select>
+          </div>
+          <button className="btn primary" onClick={save}>Saqlash</button>
+          <div className="note" style={{marginTop:12}}>
+            🆓 <b>Bepul kalit olish:</b> <b>aistudio.google.com</b> ga Google akkauntingiz bilan kiring → <b>“Get API key”</b> → <b>“Create API key”</b>. Kredit karta <b>kerak emas</b>. Bepul limit kunlik so'rovlar uchun yetarli.
+            <br/>🔒 Kalit faqat shu brauzerda saqlanadi.
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="field">
+            <label>Anthropic API kaliti</label>
+            <input type="password" value={anthropicKey} onChange={e=>setAnthropicKey(e.target.value)} placeholder="sk-ant-..." />
+          </div>
+          <div className="field">
+            <label>Model</label>
+            <select value={anthropicModel} onChange={e=>setAnthropicModel(e.target.value)}>
+              <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (tez, arzon)</option>
+              <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (aniqroq)</option>
+              <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (eng kuchli)</option>
+            </select>
+          </div>
+          <button className="btn primary" onClick={save}>Saqlash</button>
+          <div className="note" style={{marginTop:12}}>
+            💳 <b>Pullik:</b> kalit <b>console.anthropic.com</b> dan olinadi va hisobingizda kredit bo'lishi shart (claude.ai obunasi API uchun ishlamaydi). 🔒 Kalit faqat shu brauzerda saqlanadi.
+          </div>
+        </>
+      )}
 
       <div className="section-title" style={{margin:'20px 0 10px'}}>Ma'lumotlar (zaxira)</div>
       <div className="row">
